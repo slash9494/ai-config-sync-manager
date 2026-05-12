@@ -375,7 +375,7 @@
       "type": "boolean"
     },
     "apiKeyHelper": {
-      "description": "Path to a script that outputs authentication values",
+      "description": "Path to a script that outputs authentication values. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         "/bin/generate_temp_api_key.sh"
       ],
@@ -458,7 +458,7 @@
       "type": "array"
     },
     "awsAuthRefresh": {
-      "description": "Path to a script that refreshes AWS authentication",
+      "description": "Path to a script that refreshes AWS authentication. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         "aws sso login --profile myprofile"
       ],
@@ -466,7 +466,7 @@
       "type": "string"
     },
     "awsCredentialExport": {
-      "description": "Path to a script that exports AWS credentials",
+      "description": "Path to a script that exports AWS credentials. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         "/bin/generate_aws_grant.sh"
       ],
@@ -679,7 +679,7 @@
     },
     "cleanupPeriodDays": {
       "default": 30,
-      "description": "Number of days to retain sessions, orphaned subagent worktrees, tasks, shell snapshots, and backups. Minimum is 1; setting 0 is rejected with a validation error. See https://code.claude.com/docs/en/settings",
+      "description": "Number of days to retain sessions, orphaned subagent worktrees, tasks, shell snapshots, and backups. Minimum is 1; setting 0 is rejected with a validation error. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         20,
         30,
@@ -697,7 +697,7 @@
       "type": "array"
     },
     "defaultShell": {
-      "description": "Default shell for input-box ! commands. Default: bash. Using \"powershell\" routes ! commands through PowerShell on Windows and requires CLAUDE_CODE_USE_POWERSHELL_TOOL=1 with pwsh on PATH. See https://code.claude.com/docs/en/settings",
+      "description": "Default shell for input-box ! commands. Default: bash. Using \"powershell\" routes ! commands through PowerShell on Windows and requires CLAUDE_CODE_USE_POWERSHELL_TOOL=1 with pwsh on PATH. See https://code.claude.com/docs/en/settings#available-settings",
       "enum": [
         "bash",
         "powershell"
@@ -760,14 +760,14 @@
       "type": "boolean"
     },
     "disableDeepLinkRegistration": {
-      "description": "Set to \"disable\" to prevent Claude Code from registering the `claude://` deep-link protocol handler on startup. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings",
+      "description": "Set to \"disable\" to prevent Claude Code from registering the `claude://` deep-link protocol handler on startup. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings#available-settings",
       "enum": [
         "disable"
       ],
       "type": "string"
     },
     "disableSkillShellExecution": {
-      "description": "Disable inline shell execution for `` !`...` `` and ` ```! ` blocks in skills and custom slash commands from user, project, plugin, or additional-directory sources. Commands are replaced with [shell command execution disabled by policy] instead of being run. Bundled and managed skills are not affected. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings",
+      "description": "Disable inline shell execution for `` !`...` `` and ` ```! ` blocks in skills and custom slash commands from user, project, plugin, or additional-directory sources. Commands are replaced with [shell command execution disabled by policy] instead of being run. Bundled and managed skills are not affected. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     },
     "disabledMcpjsonServers": {
@@ -836,20 +836,906 @@
       "type": "object"
     },
     "env": {
-      "additionalProperties": false,
+      "additionalProperties": {
+        "description": "Environment variable value",
+        "type": "string"
+      },
       "default": {},
-      "description": "Environment variables to set for Claude Code sessions. Many environment variables provide settings dimensions not available as dedicated settings.json properties (e.g., thinking tokens, prompt caching, bash timeouts, shell configuration). See https://code.claude.com/docs/en/settings#environment-variables for the full list.\nUNDOCUMENTED: CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS (plugin marketplace git timeout in ms, default 120000, see https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#2151).\nUNDOCUMENTED: ENABLE_CLAUDEAI_MCP_SERVERS (set to false to opt out of claude.ai MCP servers, see https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#2163).",
+      "description": "Environment variables to set for Claude Code sessions. Many environment variables provide settings dimensions not available as dedicated settings.json properties (e.g., thinking tokens, prompt caching, bash timeouts, shell configuration). See https://code.claude.com/docs/en/settings#environment-variables for the full list.",
       "examples": [
         {
           "ANTHROPIC_MODEL": "claude-opus-4-1",
           "ANTHROPIC_SMALL_FAST_MODEL": "claude-3-5-haiku-latest"
         }
       ],
-      "patternProperties": {
-        "^[A-Z_][A-Z0-9_]*$": {
-          "description": "Environment variable value",
+      "properties": {
+        "ANTHROPIC_API_KEY": {
+          "description": "API key for Anthropic API authentication",
+          "type": "string"
+        },
+        "ANTHROPIC_AUTH_TOKEN": {
+          "description": "Custom Authorization header bearer token for API requests",
+          "type": "string"
+        },
+        "ANTHROPIC_BASE_URL": {
+          "description": "Override API endpoint URL for proxy or gateway routing",
+          "type": "string"
+        },
+        "ANTHROPIC_BEDROCK_BASE_URL": {
+          "description": "Override Amazon Bedrock endpoint URL",
+          "type": "string"
+        },
+        "ANTHROPIC_BEDROCK_MANTLE_BASE_URL": {
+          "description": "Override Bedrock Mantle endpoint URL",
+          "type": "string"
+        },
+        "ANTHROPIC_BEDROCK_SERVICE_TIER": {
+          "description": "Select Bedrock service tier; sent as X-Amzn-Bedrock-Service-Tier header. See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21122",
+          "enum": [
+            "default",
+            "flex",
+            "priority"
+          ],
+          "type": "string"
+        },
+        "ANTHROPIC_BETAS": {
+          "description": "Comma-separated beta header values to include in API requests",
+          "type": "string"
+        },
+        "ANTHROPIC_CUSTOM_HEADERS": {
+          "description": "Custom HTTP headers for API requests (newline-separated 'Name: Value' pairs)",
+          "type": "string"
+        },
+        "ANTHROPIC_CUSTOM_MODEL_OPTION": {
+          "description": "Custom model ID to add as an entry in the model picker",
+          "type": "string"
+        },
+        "ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION": {
+          "description": "Display description for the custom model in the model picker",
+          "type": "string"
+        },
+        "ANTHROPIC_CUSTOM_MODEL_OPTION_NAME": {
+          "description": "Display name for the custom model in the model picker",
+          "type": "string"
+        },
+        "ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES": {
+          "description": "JSON object specifying capability flags for the custom model",
+          "type": "string"
+        },
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": {
+          "description": "Override default Haiku model ID",
+          "type": "string"
+        },
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": {
+          "description": "Override default Opus model ID",
+          "type": "string"
+        },
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": {
+          "description": "Override default Sonnet model ID",
+          "type": "string"
+        },
+        "ANTHROPIC_FOUNDRY_API_KEY": {
+          "description": "Microsoft Foundry authentication key",
+          "type": "string"
+        },
+        "ANTHROPIC_FOUNDRY_BASE_URL": {
+          "description": "Microsoft Foundry resource URL",
+          "type": "string"
+        },
+        "ANTHROPIC_FOUNDRY_RESOURCE": {
+          "description": "Microsoft Foundry resource name",
+          "type": "string"
+        },
+        "ANTHROPIC_MODEL": {
+          "description": "Model to use (e.g., 'claude-opus-4-1', 'claude-sonnet-4-5-20250514', 'opus', 'sonnet', 'haiku')",
+          "type": "string"
+        },
+        "ANTHROPIC_SMALL_FAST_MODEL": {
+          "description": "Model to use for background and low-complexity tasks (e.g., 'claude-3-5-haiku-latest')",
+          "type": "string"
+        },
+        "ANTHROPIC_VERTEX_BASE_URL": {
+          "description": "Override Google Vertex AI endpoint URL",
+          "type": "string"
+        },
+        "ANTHROPIC_VERTEX_PROJECT_ID": {
+          "description": "Google Vertex AI project ID",
+          "type": "string"
+        },
+        "API_TIMEOUT_MS": {
+          "description": "API request timeout in milliseconds (default: 600000)",
+          "type": "string"
+        },
+        "AWS_BEARER_TOKEN_BEDROCK": {
+          "description": "Bearer token for Bedrock API authentication",
+          "type": "string"
+        },
+        "BASH_DEFAULT_TIMEOUT_MS": {
+          "description": "Default bash command timeout in milliseconds (default: 120000)",
+          "type": "string"
+        },
+        "BASH_MAX_OUTPUT_LENGTH": {
+          "description": "Maximum bash output characters before truncation",
+          "type": "string"
+        },
+        "BASH_MAX_TIMEOUT_MS": {
+          "description": "Maximum bash command timeout in milliseconds (default: 600000)",
+          "type": "string"
+        },
+        "CCR_FORCE_BUNDLE": {
+          "description": "Force local repo bundling for --remote invocations",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS": {
+          "description": "Disable built-in subagent types in Agent SDK",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_AGENT_SDK_MCP_NO_PREFIX": {
+          "description": "Skip 'mcp__<server>__' prefix on MCP tool names in Agent SDK",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": {
+          "description": "Context capacity percentage threshold for auto-compaction (1-100)",
+          "type": "string"
+        },
+        "CLAUDE_AUTO_BACKGROUND_TASKS": {
+          "description": "Force-enable automatic backgrounding of tasks",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": {
+          "description": "Return to original project directory after each bash command",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ACCESSIBILITY": {
+          "description": "Keep native cursor visible for screen magnifiers and assistive tools",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": {
+          "description": "Load CLAUDE.md memory files from additional directories",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": {
+          "description": "Credential helper refresh interval in milliseconds",
+          "type": "string"
+        },
+        "CLAUDE_CODE_ATTRIBUTION_HEADER": {
+          "description": "Include attribution block in the system prompt",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_AUTO_COMPACT_WINDOW": {
+          "description": "Context capacity for compaction calculations in tokens",
+          "type": "string"
+        },
+        "CLAUDE_CODE_AUTO_CONNECT_IDE": {
+          "description": "Override automatic IDE connection behavior",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_CERT_STORE": {
+          "description": "CA certificate sources (comma-separated: 'bundled', 'system')",
+          "type": "string"
+        },
+        "CLAUDE_CODE_CLIENT_CERT": {
+          "description": "Client certificate file path for mutual TLS",
+          "type": "string"
+        },
+        "CLAUDE_CODE_CLIENT_KEY": {
+          "description": "Client private key file path for mutual TLS",
+          "type": "string"
+        },
+        "CLAUDE_CODE_CLIENT_KEY_PASSPHRASE": {
+          "description": "Passphrase for encrypted client private key",
+          "type": "string"
+        },
+        "CLAUDE_CODE_DEBUG_LOGS_DIR": {
+          "description": "Directory path for debug log files",
+          "type": "string"
+        },
+        "CLAUDE_CODE_DEBUG_LOG_LEVEL": {
+          "description": "Debug log verbosity level",
+          "enum": [
+            "verbose",
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_1M_CONTEXT": {
+          "description": "Disable 1M context window models",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": {
+          "description": "Disable adaptive reasoning",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_ATTACHMENTS": {
+          "description": "Disable attachment processing",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_AUTO_MEMORY": {
+          "description": "Disable automatic memory feature",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": {
+          "description": "Disable all background task functionality",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_CLAUDE_MDS": {
+          "description": "Prevent loading CLAUDE.md memory files",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_CRON": {
+          "description": "Disable scheduled/cron tasks",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": {
+          "description": "Strip anthropic-beta headers from API requests. See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21123",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_FAST_MODE": {
+          "description": "Disable fast mode toggle",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": {
+          "description": "Disable session quality feedback surveys",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING": {
+          "description": "Disable file checkpointing for undo/restore",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": {
+          "description": "Remove git commit and PR workflow instructions from the system prompt",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_LEGACY_MODEL_REMAP": {
+          "description": "Prevent automatic remapping of legacy model names",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_MOUSE": {
+          "description": "Disable mouse tracking in fullscreen mode",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": {
+          "description": "Disable auto-update checks, telemetry, and feedback in one setting",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK": {
+          "description": "Disable fallback to non-streaming API mode",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": {
+          "description": "Skip automatic installation of official marketplace plugins",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_POLICY_SKILLS": {
+          "description": "Skip loading system-wide policy skills",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": {
+          "description": "Disable terminal title updates",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_THINKING": {
+          "description": "Force-disable extended thinking",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_VIRTUAL_SCROLL": {
+          "description": "Disable virtual scrolling in fullscreen mode",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_EFFORT_LEVEL": {
+          "description": "Reasoning effort level",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "auto"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_AWAY_SUMMARY": {
+          "description": "Override session recap/away summary availability",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_BACKGROUND_PLUGIN_REFRESH": {
+          "description": "Refresh plugins at turn boundaries",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": {
+          "description": "Force fine-grained tool output streaming",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION": {
+          "description": "Enable prompt suggestions",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_TASKS": {
+          "description": "Enable task tracking in non-interactive mode",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_TELEMETRY": {
+          "description": "Enable OpenTelemetry collection",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_EXIT_AFTER_STOP_DELAY": {
+          "description": "Wait time in milliseconds before auto-exit after stop",
+          "type": "string"
+        },
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": {
+          "description": "Enable experimental agent teams feature",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_EXTRA_BODY": {
+          "description": "JSON object to merge into every API request body",
+          "type": "string"
+        },
+        "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS": {
+          "description": "Token limit for file read operations",
+          "type": "string"
+        },
+        "CLAUDE_CODE_FORK_SUBAGENT": {
+          "description": "Fork subagent processes in non-interactive sessions. See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21120",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_GIT_BASH_PATH": {
+          "description": "Path to Git Bash executable (Windows only)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_GLOB_HIDDEN": {
+          "description": "Include dotfiles/hidden files in Glob results",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_GLOB_NO_IGNORE": {
+          "description": "Don't respect .gitignore rules in Glob results",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_GLOB_TIMEOUT_SECONDS": {
+          "description": "Glob tool timeout in seconds (default: 20-60)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_HIDE_CWD": {
+          "description": "Hide the working directory in the startup logo. See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21126",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_IDE_HOST_OVERRIDE": {
+          "description": "Override IDE connection address",
+          "type": "string"
+        },
+        "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": {
+          "description": "Skip automatic IDE extension installation",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_IDE_SKIP_VALID_CHECK": {
+          "description": "Skip IDE lockfile validation",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_MAX_CONTEXT_TOKENS": {
+          "description": "Override context window size in tokens",
+          "type": "string"
+        },
+        "CLAUDE_CODE_MAX_OUTPUT_TOKENS": {
+          "description": "Maximum output tokens per API request",
+          "type": "string"
+        },
+        "CLAUDE_CODE_MAX_RETRIES": {
+          "description": "Maximum API request retry attempts (default: 10)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": {
+          "description": "Maximum parallel tool executions (default: 10)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_MCP_ALLOWLIST_ENV": {
+          "description": "Isolate MCP server environments to allowlisted variables",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_NEW_INIT": {
+          "description": "Use the interactive /init setup flow",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_NO_FLICKER": {
+          "description": "Enable fullscreen rendering mode to reduce flicker",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_OAUTH_REFRESH_TOKEN": {
+          "description": "OAuth refresh token",
+          "type": "string"
+        },
+        "CLAUDE_CODE_OAUTH_SCOPES": {
+          "description": "OAuth scopes (space-separated)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_OAUTH_TOKEN": {
+          "description": "OAuth access token",
+          "type": "string"
+        },
+        "CLAUDE_CODE_OTEL_FLUSH_TIMEOUT_MS": {
+          "description": "OpenTelemetry span flush timeout in milliseconds (default: 5000)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_OTEL_HEADERS_HELPER_DEBOUNCE_MS": {
+          "description": "OpenTelemetry header helper refresh interval in milliseconds",
+          "type": "string"
+        },
+        "CLAUDE_CODE_OTEL_SHUTDOWN_TIMEOUT_MS": {
+          "description": "OpenTelemetry shutdown timeout in milliseconds (default: 2000)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_PERFORCE_MODE": {
+          "description": "Enable Perforce write protection mode",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_PLUGIN_CACHE_DIR": {
+          "description": "Root directory for plugin cache",
+          "type": "string"
+        },
+        "CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS": {
+          "description": "Plugin marketplace git operations timeout in milliseconds (default: 120000). See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#2151",
+          "type": "string"
+        },
+        "CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE": {
+          "description": "Keep plugin cache on update failure",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_PLUGIN_SEED_DIR": {
+          "description": "Path(s) to pre-populated plugin directories",
+          "type": "string"
+        },
+        "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST": {
+          "description": "Indicate that the host application manages provider routing",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_PROXY_RESOLVES_HOSTS": {
+          "description": "Allow proxy to handle DNS resolution",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_REMOTE": {
+          "description": "Indicates a remote web environment session",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_REMOTE_SESSION_ID": {
+          "description": "Cloud session identifier for remote sessions",
+          "type": "string"
+        },
+        "CLAUDE_CODE_RESUME_INTERRUPTED_TURN": {
+          "description": "Automatically resume from a mid-turn interruption",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SCRIPT_CAPS": {
+          "description": "Script invocation limits (JSON object)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_SCROLL_SPEED": {
+          "description": "Mouse wheel scroll speed multiplier (1-20)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_SESSION_END_HOOKS_TIMEOUT_MS": {
+          "description": "Time budget in milliseconds for SessionEnd hooks",
+          "type": "string"
+        },
+        "CLAUDE_CODE_SHELL": {
+          "description": "Override automatic shell detection (e.g., '/bin/zsh', '/bin/bash')",
+          "type": "string"
+        },
+        "CLAUDE_CODE_SHELL_PREFIX": {
+          "description": "Command prefix wrapper for shell commands",
+          "type": "string"
+        },
+        "CLAUDE_CODE_SIMPLE": {
+          "description": "Minimal mode with core tools only",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": {
+          "description": "Use a shortened system prompt",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SKIP_BEDROCK_AUTH": {
+          "description": "Skip AWS authentication for Bedrock",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SKIP_FOUNDRY_AUTH": {
+          "description": "Skip Azure authentication for Foundry",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SKIP_MANTLE_AUTH": {
+          "description": "Skip AWS authentication for Mantle",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SKIP_PROMPT_HISTORY": {
+          "description": "Disable transcript writes entirely. See https://code.claude.com/docs/en/settings#environment-variables",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SKIP_VERTEX_AUTH": {
+          "description": "Skip Google authentication for Vertex AI",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SUBAGENT_MODEL": {
+          "description": "Override model used by subagents",
+          "type": "string"
+        },
+        "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": {
+          "description": "Strip credentials from subprocess environments",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SYNC_PLUGIN_INSTALL": {
+          "description": "Wait synchronously for plugin installation",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SYNC_PLUGIN_INSTALL_TIMEOUT_MS": {
+          "description": "Timeout in milliseconds for synchronous plugin installation",
+          "type": "string"
+        },
+        "CLAUDE_CODE_SYNTAX_HIGHLIGHT": {
+          "description": "Enable syntax highlighting in diffs",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_TASK_LIST_ID": {
+          "description": "Shared task list identifier for team collaboration",
+          "type": "string"
+        },
+        "CLAUDE_CODE_TEAM_NAME": {
+          "description": "Agent team membership name",
+          "type": "string"
+        },
+        "CLAUDE_CODE_TMPDIR": {
+          "description": "Override temp directory path",
+          "type": "string"
+        },
+        "CLAUDE_CODE_TMUX_TRUECOLOR": {
+          "description": "Allow 24-bit truecolor rendering in tmux",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_USE_POWERSHELL_TOOL": {
+          "description": "Enable PowerShell as default shell for interactive commands (Windows)",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_ENV_FILE": {
+          "description": "File path for persisting environment variables across Bash commands",
+          "type": "string"
+        },
+        "CLAUDE_PROJECT_DIR": {
+          "description": "Project root directory path (also provided to hooks)",
+          "type": "string"
+        },
+        "DISABLE_AUTOUPDATER": {
+          "description": "Stop background auto-update checks",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "DISABLE_ERROR_REPORTING": {
+          "description": "Disable Sentry error reporting",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "DISABLE_FEEDBACK_COMMAND": {
+          "description": "Disable the /feedback command",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "DISABLE_TELEMETRY": {
+          "description": "Disable Statsig telemetry collection",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "DISABLE_UPDATES": {
+          "description": "Block all update paths including manual updates",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "ENABLE_CLAUDEAI_MCP_SERVERS": {
+          "description": "Opt in/out of claude.ai MCP servers. See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#2163",
+          "enum": [
+            "true",
+            "false"
+          ],
+          "type": "string"
+        },
+        "HTTPS_PROXY": {
+          "description": "HTTPS proxy URL (recommended over HTTP_PROXY)",
+          "type": "string"
+        },
+        "HTTP_PROXY": {
+          "description": "HTTP proxy URL",
+          "type": "string"
+        },
+        "NODE_EXTRA_CA_CERTS": {
+          "description": "Path to custom CA certificate file",
+          "type": "string"
+        },
+        "NO_PROXY": {
+          "description": "Domains to bypass proxy (space or comma-separated, or '*' for all)",
+          "type": "string"
+        },
+        "OTEL_METRICS_EXPORTER": {
+          "description": "OpenTelemetry metrics exporter configuration",
+          "type": "string"
+        },
+        "USE_BUILTIN_RIPGREP": {
+          "description": "Use the bundled ripgrep binary instead of system ripgrep",
+          "enum": [
+            "0",
+            "1"
+          ],
           "type": "string"
         }
+      },
+      "propertyNames": {
+        "pattern": "^[A-Z_][A-Z0-9_]*$"
       },
       "type": "object"
     },
@@ -1045,7 +1931,7 @@
       "type": "boolean"
     },
     "feedbackSurveyRate": {
-      "description": "Probability (0–1) that the session quality survey appears when eligible. A value of 0.05 means 5% of eligible sessions. See https://code.claude.com/docs/en/settings",
+      "description": "Probability (0–1) that the session quality survey appears when eligible. A value of 0.05 means 5% of eligible sessions. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         0.05
       ],
@@ -1171,6 +2057,13 @@
           },
           "type": "array"
         },
+        "PermissionDenied": {
+          "description": "Hooks that run when a tool call is denied by the auto mode classifier. Supports matchers on tool name. See https://code.claude.com/docs/en/hooks",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          },
+          "type": "array"
+        },
         "PermissionRequest": {
           "description": "Hooks that run when a permission dialog appears",
           "items": {
@@ -1180,6 +2073,13 @@
         },
         "PostCompact": {
           "description": "Hooks that run after the context is compacted. See https://code.claude.com/docs/en/hooks",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          },
+          "type": "array"
+        },
+        "PostToolBatch": {
+          "description": "Hooks that run after a full batch of parallel tool calls resolves, before the next model call. Exit code 2 blocks the agentic loop. Does not support matchers. See https://code.claude.com/docs/en/hooks",
           "items": {
             "$ref": "#/$defs/hookMatcher"
           },
@@ -1269,8 +2169,22 @@
           },
           "type": "array"
         },
+        "TaskCreated": {
+          "description": "Hooks that run when a task is being created via TaskCreate. Exit code 2 rolls back task creation. Does not support matchers. See https://code.claude.com/docs/en/hooks#taskcreated",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          },
+          "type": "array"
+        },
         "TeammateIdle": {
           "description": "Hooks that run when an agent team teammate is about to go idle. Exit code 2 sends feedback and keeps the teammate working. Does not support matchers. Agent teams are experimental. See https://code.claude.com/docs/en/hooks#teammateidle",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          },
+          "type": "array"
+        },
+        "UserPromptExpansion": {
+          "description": "Hooks that run when a user-typed command expands into a prompt, before it reaches Claude. Exit code 2 blocks the expansion. Supports matchers on command name. See https://code.claude.com/docs/en/hooks",
           "items": {
             "$ref": "#/$defs/hookMatcher"
           },
@@ -1325,7 +2239,7 @@
       "type": "boolean"
     },
     "language": {
-      "description": "Preferred language for Claude's responses",
+      "description": "Configure Claude's preferred response language (e.g., \"japanese\", \"spanish\", \"french\"). Claude will respond in this language by default. Also sets the voice dictation language and terminal tab session title generation. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         "japanese",
         "spanish",
@@ -1334,7 +2248,7 @@
       "type": "string"
     },
     "minimumVersion": {
-      "description": "Minimum Claude Code version to stay on. Prevents downgrades when switching release channels. See https://code.claude.com/docs/en/settings",
+      "description": "Minimum Claude Code version to stay on. Prevents downgrades when switching release channels. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         "2.1.0"
       ],
@@ -1535,7 +2449,7 @@
       "type": "string"
     },
     "prUrlTemplate": {
-      "description": "URL template for the PR badge shown in the footer and in tool-result summaries. Substitutes placeholders {host}, {owner}, {repo}, {number}, {url} from the gh-reported PR URL. Use this to point PR links at an internal code-review tool instead of github.com. Does not affect #123 autolinks in Claude's prose. See https://code.claude.com/docs/en/settings",
+      "description": "URL template for the PR badge shown in the footer and in tool-result summaries. Substitutes placeholders {host}, {owner}, {repo}, {number}, {url} from the gh-reported PR URL. Use this to point PR links at an internal code-review tool instead of github.com. Does not affect #123 autolinks in Claude's prose. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
         "https://reviews.example.com/{owner}/{repo}/pull/{number}"
       ],
@@ -1556,16 +2470,16 @@
       "description": "Sandbox execution configuration. See https://code.claude.com/docs/en/sandboxing",
       "properties": {
         "allowUnsandboxedCommands": {
-          "description": "Allow commands to run outside the sandbox via the dangerouslyDisableSandbox parameter. When false, the dangerouslyDisableSandbox parameter is completely ignored and all commands must run sandboxed. Default: true.",
+          "description": "Allow commands to run outside the sandbox via the dangerouslyDisableSandbox parameter. When false, the dangerouslyDisableSandbox parameter is completely ignored and all commands must run sandboxed. Default: true. See https://code.claude.com/docs/en/sandboxing#limitations",
           "type": "boolean"
         },
         "autoAllowBashIfSandboxed": {
           "default": true,
-          "description": "Automatically allow bash commands without prompting when they run in the sandbox. Only applies to commands that will run sandboxed.",
+          "description": "Automatically allow bash commands without prompting when they run in the sandbox. Only applies to commands that will run sandboxed. See https://code.claude.com/docs/en/sandboxing#sandbox-modes",
           "type": "boolean"
         },
         "enableWeakerNestedSandbox": {
-          "description": "Enable weaker sandbox mode for unprivileged docker environments where --proc mounting fails. This significantly reduces the strength of the sandbox and should only be used when this risk is acceptable.Default: false (secure).",
+          "description": "Enable weaker sandbox mode for unprivileged docker environments where --proc mounting fails. This significantly reduces the strength of the sandbox and should only be used when this risk is acceptable. Default: false (secure). See https://code.claude.com/docs/en/sandboxing#limitations",
           "type": "boolean"
         },
         "enableWeakerNetworkIsolation": {
@@ -1574,11 +2488,11 @@
           "type": "boolean"
         },
         "enabled": {
-          "description": "Enable sandboxed bash",
+          "description": "Enable sandboxed bash. See https://code.claude.com/docs/en/sandboxing#enable-sandboxing",
           "type": "boolean"
         },
         "excludedCommands": {
-          "description": "Commands that should never run in the sandbox (e.g., [\"git\", \"docker\"])",
+          "description": "Commands that should never run in the sandbox (e.g., [\"git\", \"docker\"]). See https://code.claude.com/docs/en/sandboxing#configure-sandboxing",
           "items": {
             "type": "string"
           },
@@ -1589,11 +2503,11 @@
           "description": "Filesystem access control for sandboxed commands. See https://code.claude.com/docs/en/sandboxing#filesystem-isolation",
           "properties": {
             "allowManagedReadPathsOnly": {
-              "description": "When true (managed settings only), only allowRead paths from managed settings are used",
+              "description": "(Managed settings only) When true, only allowRead paths from managed settings are used; user, project, and local allowRead entries are ignored. denyRead still merges from all sources. See https://code.claude.com/docs/en/sandboxing#filesystem-isolation",
               "type": "boolean"
             },
             "allowRead": {
-              "description": "Paths to re-allow reading within denyRead regions. Takes precedence over denyRead for matching paths",
+              "description": "Paths to re-allow reading within denyRead regions. Takes precedence over denyRead for matching paths. See https://code.claude.com/docs/en/sandboxing#granting-subprocess-write-access-to-specific-paths",
               "items": {
                 "minLength": 1,
                 "type": "string"
@@ -1601,7 +2515,7 @@
               "type": "array"
             },
             "allowWrite": {
-              "description": "Paths where subprocesses are allowed to write. Supports prefixes: // (absolute), ~/ (home directory), / (relative to settings file), ./ or no prefix (relative path)",
+              "description": "Paths where subprocesses are allowed to write. Supports prefixes: // (absolute), ~/ (home directory), / (relative to settings file), ./ or no prefix (relative path). See https://code.claude.com/docs/en/sandboxing#granting-subprocess-write-access-to-specific-paths",
               "items": {
                 "minLength": 1,
                 "type": "string"
@@ -1609,7 +2523,7 @@
               "type": "array"
             },
             "denyRead": {
-              "description": "Paths where subprocesses are explicitly denied read access",
+              "description": "Paths where subprocesses are explicitly denied read access. See https://code.claude.com/docs/en/sandboxing#filesystem-isolation",
               "items": {
                 "minLength": 1,
                 "type": "string"
@@ -1617,7 +2531,7 @@
               "type": "array"
             },
             "denyWrite": {
-              "description": "Paths where subprocesses are explicitly denied write access. Takes precedence over allowWrite",
+              "description": "Paths where subprocesses are explicitly denied write access. Takes precedence over allowWrite. See https://code.claude.com/docs/en/sandboxing#filesystem-isolation",
               "items": {
                 "minLength": 1,
                 "type": "string"
@@ -1643,15 +2557,15 @@
           "description": "Configures network isolation settings for the sandboxed bash environment, including domain restrictions, Unix socket access, and custom proxy configuration.",
           "properties": {
             "allowAllUnixSockets": {
-              "description": "Allow all Unix domain socket connections. If true, this overrides allowUnixSockets",
+              "description": "Allow all Unix domain socket connections. If true, this overrides allowUnixSockets. See https://code.claude.com/docs/en/sandboxing#network-isolation",
               "type": "boolean"
             },
             "allowLocalBinding": {
-              "description": "Allow binding to local network addresses (e.g., localhost ports). Defaults to false if not specified",
+              "description": "Allow binding to local network addresses (e.g., localhost ports). Defaults to false if not specified. See https://code.claude.com/docs/en/sandboxing#network-isolation",
               "type": "boolean"
             },
             "allowMachLookup": {
-              "description": "macOS only. Additional XPC/Mach service names the sandbox may look up. Supports a single trailing * for prefix matching. Needed for tools that communicate via XPC such as the iOS Simulator or Playwright. See https://code.claude.com/docs/en/settings",
+              "description": "macOS only. Additional XPC/Mach service names the sandbox may look up. Supports a single trailing * for prefix matching. Needed for tools that communicate via XPC such as the iOS Simulator or Playwright. See https://code.claude.com/docs/en/sandboxing#network-isolation",
               "examples": [
                 [
                   "com.apple.coresimulator.*"
@@ -1664,18 +2578,18 @@
               "type": "array"
             },
             "allowManagedDomainsOnly": {
-              "description": "(Managed settings only) Only allowedDomains and WebFetch(domain:...) allow rules from managed settings are respected. User, project, local, and flag settings domains are ignored. Denied domains are still respected from all sources. Non-allowed domains are automatically blocked without user prompts.",
+              "description": "(Managed settings only) Only allowedDomains and WebFetch(domain:...) allow rules from managed settings are respected. User, project, local, and flag settings domains are ignored. Denied domains are still respected from all sources. Non-allowed domains are automatically blocked without user prompts. See https://code.claude.com/docs/en/sandboxing#network-isolation",
               "type": "boolean"
             },
             "allowUnixSockets": {
-              "description": "Allow Unix domain sockets for local IPC (SSH agent, Docker, etc.). Provide an array of specific paths. Defaults to blocking if not specified",
+              "description": "Allow Unix domain sockets for local IPC (SSH agent, Docker, etc.). Provide an array of specific paths. Defaults to blocking if not specified. See https://code.claude.com/docs/en/sandboxing#network-isolation",
               "items": {
                 "type": "string"
               },
               "type": "array"
             },
             "allowedDomains": {
-              "description": "Allowlist of network domains for sandboxed commands. Supports wildcard patterns like *.example.com",
+              "description": "Allowlist of network domains for sandboxed commands. Supports wildcard patterns like *.example.com. See https://code.claude.com/docs/en/sandboxing#network-isolation",
               "items": {
                 "minLength": 1,
                 "type": "string"
@@ -1683,7 +2597,7 @@
               "type": "array"
             },
             "deniedDomains": {
-              "description": "Blocklist of network domains for sandboxed commands. Blocks specific domains even when a broader allowedDomains wildcard would otherwise permit them. Supports wildcard patterns like *.example.com. See https://code.claude.com/docs/en/sandboxing",
+              "description": "Blocklist of network domains for sandboxed commands. Blocks specific domains even when a broader allowedDomains wildcard would otherwise permit them. Supports wildcard patterns like *.example.com. See https://code.claude.com/docs/en/sandboxing#network-isolation",
               "items": {
                 "minLength": 1,
                 "type": "string"
@@ -1691,13 +2605,13 @@
               "type": "array"
             },
             "httpProxyPort": {
-              "description": "HTTP proxy port to use for network filtering. If not specified, a proxy server will be started automatically",
+              "description": "HTTP proxy port to use for network filtering. If not specified, a proxy server will be started automatically. See https://code.claude.com/docs/en/sandboxing#custom-proxy-configuration",
               "maximum": 65535,
               "minimum": 1,
               "type": "integer"
             },
             "socksProxyPort": {
-              "description": "SOCKS proxy port to use for network filtering. If not specified, a proxy server will be started automatically",
+              "description": "SOCKS proxy port to use for network filtering. If not specified, a proxy server will be started automatically. See https://code.claude.com/docs/en/sandboxing#custom-proxy-configuration",
               "maximum": 65535,
               "minimum": 1,
               "type": "integer"
@@ -1737,7 +2651,7 @@
     },
     "showThinkingSummaries": {
       "default": false,
-      "description": "Show thinking summaries in the transcript view (Ctrl+O). Thinking summaries are not generated by default in interactive sessions; set to true to restore. See https://code.claude.com/docs/en/settings",
+      "description": "Show thinking summaries in the transcript view (Ctrl+O). Thinking summaries are not generated by default in interactive sessions; set to true to restore. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     },
     "showTurnDuration": {
@@ -1750,7 +2664,7 @@
       "type": "boolean"
     },
     "skipWebFetchPreflight": {
-      "description": "Skip the WebFetch blocklist check for enterprise environments with restrictive security policies",
+      "description": "Skip the WebFetch blocklist check for enterprise environments with restrictive security policies. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     },
     "skippedMarketplaces": {
@@ -2093,7 +3007,7 @@
       "type": "boolean"
     },
     "tui": {
-      "description": "TUI rendering mode. Use \"fullscreen\" for the flicker-free alt-screen renderer with virtualized scrollback; \"default\" for the classic main-screen renderer. Corresponds to the /tui command. See https://code.claude.com/docs/en/settings",
+      "description": "TUI rendering mode. Use \"fullscreen\" for the flicker-free alt-screen renderer with virtualized scrollback; \"default\" for the classic main-screen renderer. Corresponds to the /tui command. See https://code.claude.com/docs/en/settings#available-settings",
       "enum": [
         "fullscreen",
         "default"
@@ -2105,7 +3019,7 @@
       "type": "boolean"
     },
     "viewMode": {
-      "description": "Transcript view mode. \"default\" shows standard interactive view; \"verbose\" shows expanded tool details; \"focus\" shows prompt, one-line tool summaries, and final response only (Ctrl+O toggle). See https://code.claude.com/docs/en/settings",
+      "description": "Transcript view mode. \"default\" shows standard interactive view; \"verbose\" shows expanded tool details; \"focus\" shows prompt, one-line tool summaries, and final response only (Ctrl+O toggle). See https://code.claude.com/docs/en/settings#available-settings",
       "enum": [
         "default",
         "verbose",
@@ -2114,15 +3028,15 @@
       "type": "string"
     },
     "voiceEnabled": {
-      "description": "Enable push-to-talk voice dictation. Typically written automatically when /voice is used. Requires a Claude.ai account. See https://code.claude.com/docs/en/settings",
+      "description": "Enable push-to-talk voice dictation. Typically written automatically when /voice is used. Requires a Claude.ai account. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     },
     "worktree": {
       "additionalProperties": false,
-      "description": "Configuration for --worktree sessions. See https://code.claude.com/docs/en/settings",
+      "description": "Configuration for --worktree sessions. See https://code.claude.com/docs/en/settings#worktree-settings",
       "properties": {
         "sparsePaths": {
-          "description": "Directories to check out in each worktree via git sparse-checkout (cone mode). Only the listed paths are written to disk, which is faster in large monorepos.",
+          "description": "Directories to check out in each worktree via git sparse-checkout (cone mode). Only the listed paths are written to disk, which is faster in large monorepos. See https://code.claude.com/docs/en/settings#worktree-settings",
           "examples": [
             [
               "packages/my-app",
@@ -2139,7 +3053,7 @@
       "type": "object"
     },
     "wslInheritsWindowsSettings": {
-      "description": "(Windows managed settings only) When true, Claude Code on WSL reads managed settings from the Windows policy chain in addition to /etc/claude-code, with Windows sources taking priority. Only honored when set in the HKLM registry key or C:\\Program Files\\ClaudeCode\\managed-settings.json, both of which require Windows admin to write. For HKCU policy to also apply on WSL, the flag must additionally be set in HKCU itself. Has no effect on native Windows. See https://code.claude.com/docs/en/settings",
+      "description": "(Windows managed settings only) When true, Claude Code on WSL reads managed settings from the Windows policy chain in addition to /etc/claude-code, with Windows sources taking priority. Only honored when set in the HKLM registry key or C:\\Program Files\\ClaudeCode\\managed-settings.json, both of which require Windows admin to write. For HKCU policy to also apply on WSL, the flag must additionally be set in HKCU itself. Has no effect on native Windows. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     }
   },
