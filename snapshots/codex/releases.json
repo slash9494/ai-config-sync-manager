@@ -1,23 +1,23 @@
 [
   {
+    "body": "Release 0.131.0-alpha.18\n\n",
+    "published_at": "2026-05-14T21:41:33Z",
+    "tag_name": "rust-v0.131.0-alpha.18"
+  },
+  {
+    "body": "Release 0.131.0-alpha.16\n\n",
+    "published_at": "2026-05-14T16:42:33Z",
+    "tag_name": "rust-v0.131.0-alpha.16"
+  },
+  {
     "body": "Release 0.131.0-alpha.8\n\n",
     "published_at": "2026-05-12T06:40:43Z",
     "tag_name": "rust-v0.131.0-alpha.8"
   },
   {
-    "body": "Release 0.131.0-alpha.7\n\n",
-    "published_at": "2026-05-12T01:58:34Z",
-    "tag_name": "rust-v0.131.0-alpha.7"
-  },
-  {
     "body": "Release 0.131.0-alpha.9\n\n",
     "published_at": "2026-05-12T01:20:36Z",
     "tag_name": "rust-v0.131.0-alpha.9"
-  },
-  {
-    "body": "Release 0.131.0-alpha.6\n\n",
-    "published_at": "2026-05-11T11:48:21Z",
-    "tag_name": "rust-v0.131.0-alpha.6"
   },
   {
     "body": "",
