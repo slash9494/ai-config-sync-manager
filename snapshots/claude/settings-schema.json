@@ -6,6 +6,13 @@
           "additionalProperties": false,
           "description": "Bash command hook",
           "properties": {
+            "args": {
+              "description": "Argument list for exec form. When present, spawns the command directly without shell interpretation — each element is passed as-is, so path placeholders never need quoting. See https://code.claude.com/docs/en/hooks#command-hook-fields",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "async": {
               "description": "Run this hook asynchronously without blocking Claude Code",
               "type": "boolean"
@@ -56,6 +63,11 @@
           "additionalProperties": false,
           "description": "LLM prompt hook. See https://code.claude.com/docs/en/hooks#prompt-based-hooks",
           "properties": {
+            "continueOnBlock": {
+              "default": false,
+              "description": "When the prompt returns ok: false, feed the reason back to Claude and continue the turn instead of stopping. Implemented as continue: true on the resulting decision: \"block\". See https://code.claude.com/docs/en/hooks#prompt-hook-configuration",
+              "type": "boolean"
+            },
             "if": {
               "description": "Optional permission-rule-syntax filter. Evaluated only on tool-related events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied); on other events a hook with `if` set never runs. See https://code.claude.com/docs/en/hooks-guide#filter-hooks-with-matchers",
               "type": "string"
@@ -256,6 +268,8 @@
         "Bash(git * main)",
         "Edit",
         "Edit(/src/**/*.ts)",
+        "Read(*)",
+        "Skill(*)",
         "Read(./.env)",
         "Read(./secrets/**)",
         "Read(//Users/alice/secrets/**)",
@@ -266,7 +280,7 @@
         "mcp__puppeteer",
         "mcp__github__search_repositories"
       ],
-      "pattern": "^((Agent|Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LSP|Monitor|NotebookEdit|PowerShell|Read|Skill|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\((?=.*[^)*?])[^)]+\\))?|mcp__.*)$",
+      "pattern": "^((Agent|Bash|Edit|ExitPlanMode|Glob|Grep|KillShell|LSP|Monitor|NotebookEdit|PowerShell|Read|Skill|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\([^)]+\\))?|mcp__.*)$",
       "type": "string"
     }
   },
@@ -420,6 +434,13 @@
         },
         "environment": {
           "description": "Entries for the auto mode classifier environment section. Replaces the built-in environment context entirely unless the literal string \"$defaults\" is included as an entry, which splices the built-in defaults in at that position.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "hard_deny": {
+          "description": "Rules for the auto mode classifier hard-deny section. Hard-deny rules block unconditionally regardless of user intent. Replaces the built-in hard-deny rules entirely unless the literal string \"$defaults\" is included as an entry, which splices the built-in defaults in at that position. See https://code.claude.com/docs/en/permissions",
           "items": {
             "type": "string"
           },
@@ -942,6 +963,10 @@
           "description": "Google Vertex AI project ID",
           "type": "string"
         },
+        "ANTHROPIC_WORKSPACE_ID": {
+          "description": "Workspace ID for workload identity federation. Scopes the minted token to a specific workspace when the federation rule covers more than one. See https://code.claude.com/docs/en/env-vars",
+          "type": "string"
+        },
         "API_TIMEOUT_MS": {
           "description": "API request timeout in milliseconds (default: 600000)",
           "type": "string"
@@ -1087,6 +1112,14 @@
         },
         "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": {
           "description": "Disable adaptive reasoning",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": {
+          "description": "Disable alternate screen buffer rendering. When set to 1, keeps conversation in native scrollback instead of fullscreen renderer",
           "enum": [
             "0",
             "1"
@@ -1273,8 +1306,24 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL": {
+          "description": "Enable feedback survey collection via OpenTelemetry for enterprises",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": {
           "description": "Force fine-grained tool output streaming",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": {
+          "description": "Enable model discovery from LLM gateway /v1/models endpoint when ANTHROPIC_BASE_URL points at an Anthropic-compatible gateway",
           "enum": [
             "0",
             "1"
@@ -1323,6 +1372,14 @@
         },
         "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS": {
           "description": "Token limit for file read operations",
+          "type": "string"
+        },
+        "CLAUDE_CODE_FORCE_SYNC_OUTPUT": {
+          "description": "Force synchronous output flushing. When set to 1, forces synchronized output on terminals that auto-detection misses (e.g., Emacs eat)",
+          "enum": [
+            "0",
+            "1"
+          ],
           "type": "string"
         },
         "CLAUDE_CODE_FORK_SUBAGENT": {
@@ -1437,6 +1494,14 @@
           "description": "OAuth access token",
           "type": "string"
         },
+        "CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE": {
+          "description": "Set to 1 to pin fast mode to Claude Opus 4.6 instead of the default Opus 4.7. With this set, /fast runs on Opus 4.6. Without it, /fast runs on Opus 4.7. See https://code.claude.com/docs/en/fast-mode and https://code.claude.com/docs/en/env-vars",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_OTEL_FLUSH_TIMEOUT_MS": {
           "description": "OpenTelemetry span flush timeout in milliseconds (default: 5000)",
           "type": "string"
@@ -1447,6 +1512,14 @@
         },
         "CLAUDE_CODE_OTEL_SHUTDOWN_TIMEOUT_MS": {
           "description": "OpenTelemetry shutdown timeout in milliseconds (default: 2000)",
+          "type": "string"
+        },
+        "CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE": {
+          "description": "Enable automatic package manager updates. When set, Claude Code runs the upgrade command in background on Homebrew/WinGet and prompts to restart",
+          "enum": [
+            "0",
+            "1"
+          ],
           "type": "string"
         },
         "CLAUDE_CODE_PERFORCE_MODE": {
@@ -1473,8 +1546,24 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_PLUGIN_PREFER_HTTPS": {
+          "description": "Set to 1 to clone GitHub owner/repo plugin sources over HTTPS instead of SSH. Useful in CI runners, containers, or environments without a configured SSH key for github.com. See https://code.claude.com/docs/en/env-vars",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_PLUGIN_SEED_DIR": {
           "description": "Path(s) to pre-populated plugin directories",
+          "type": "string"
+        },
+        "CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY": {
+          "description": "Set to 1 to stop Claude Code from passing -ExecutionPolicy Bypass when spawning PowerShell for tool calls, hooks, and status line commands. By default Claude Code bypasses execution policy so .ps1 scripts work on default-Restricted Windows installs. See https://code.claude.com/docs/en/env-vars",
+          "enum": [
+            "0",
+            "1"
+          ],
           "type": "string"
         },
         "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST": {
@@ -1587,6 +1676,10 @@
             "0",
             "1"
           ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP": {
+          "description": "Override the default maximum consecutive Stop hook blocks (default: 8) before the turn ends with a warning. Raise this when a stop hook legitimately needs more than 8 iterations to converge. See https://code.claude.com/docs/en/hooks-guide",
           "type": "string"
         },
         "CLAUDE_CODE_SUBAGENT_MODEL": {
@@ -1922,7 +2015,7 @@
     },
     "fastMode": {
       "default": false,
-      "description": "Enable fast mode for Opus 4.6 (research preview). Fast mode uses the same model with 2.5x faster output at higher per-token cost. Requires extra usage enabled. Alternatively, toggle with /fast command. See https://code.claude.com/docs/en/fast-mode",
+      "description": "Enable fast mode, which uses Claude Opus 4.7 by default for 2.5x faster output at higher per-token cost. Requires extra usage enabled. Toggle with /fast command. Set CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE=1 to pin fast mode to Opus 4.6. See https://code.claude.com/docs/en/fast-mode",
       "type": "boolean"
     },
     "fastModePerSessionOptIn": {
@@ -2286,6 +2379,15 @@
       "minLength": 1,
       "type": "string"
     },
+    "parentSettingsBehavior": {
+      "default": "first-wins",
+      "description": "(Admin/managed settings only) Controls how SDK managedSettings (parent tier) merge with inherited settings. 'first-wins': first non-empty value applies (default). 'merge': merge arrays and objects. See https://code.claude.com/docs/en/server-managed-settings",
+      "enum": [
+        "first-wins",
+        "merge"
+      ],
+      "type": "string"
+    },
     "permissions": {
       "additionalProperties": false,
       "description": "Tool usage permissions configuration.\nSee https://code.claude.com/docs/en/permissions and https://code.claude.com/docs/en/settings#permission-settings\nSee https://code.claude.com/docs/en/tools-reference for full list of tools available to Claude.",
@@ -2478,6 +2580,11 @@
           "description": "Automatically allow bash commands without prompting when they run in the sandbox. Only applies to commands that will run sandboxed. See https://code.claude.com/docs/en/sandboxing#sandbox-modes",
           "type": "boolean"
         },
+        "bwrapPath": {
+          "description": "(Managed setting only) Path to custom bubblewrap (bwrap) binary for Linux/WSL sandbox. Overrides default. See https://code.claude.com/docs/en/server-managed-settings",
+          "minLength": 1,
+          "type": "string"
+        },
         "enableWeakerNestedSandbox": {
           "description": "Enable weaker sandbox mode for unprivileged docker environments where --proc mounting fails. This significantly reduces the strength of the sandbox and should only be used when this risk is acceptable. Default: false (secure). See https://code.claude.com/docs/en/sandboxing#limitations",
           "type": "boolean"
@@ -2497,6 +2604,10 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "failIfUnavailable": {
+          "description": "When true, make sandbox startup a hard failure if required sandbox dependencies are missing. Default: false (sandbox is skipped with a warning). See https://code.claude.com/docs/en/sandboxing#enable-sandboxing",
+          "type": "boolean"
         },
         "filesystem": {
           "additionalProperties": false,
@@ -2640,6 +2751,11 @@
             "command"
           ],
           "type": "object"
+        },
+        "socatPath": {
+          "description": "(Managed setting only) Path to custom socat binary for Linux/WSL network proxying. Overrides default. See https://code.claude.com/docs/en/server-managed-settings",
+          "minLength": 1,
+          "type": "string"
         }
       },
       "type": "object"
@@ -2658,6 +2774,25 @@
       "default": true,
       "description": "Show turn duration messages after responses (e.g., \"Cooked for 1m 6s\"). Set to false to hide these messages (default: true)",
       "type": "boolean"
+    },
+    "skillOverrides": {
+      "additionalProperties": {
+        "enum": [
+          "on",
+          "name-only",
+          "user-invocable-only",
+          "off"
+        ],
+        "type": "string"
+      },
+      "description": "Per-skill visibility overrides. Controls whether skills appear to Claude and in the / picker. Values: 'on' (name and description shown, default), 'name-only' (name only), 'user-invocable-only' (hidden from Claude, visible in /), 'off' (hidden everywhere). Plugin skills are not affected by this setting. See https://code.claude.com/docs/en/skills#override-skill-visibility-from-settings",
+      "examples": [
+        {
+          "deploy": "off",
+          "legacy-context": "name-only"
+        }
+      ],
+      "type": "object"
     },
     "skipDangerousModePermissionPrompt": {
       "description": "Whether the user has accepted the bypass permissions mode dialog. Typically managed by the CLI rather than set by hand.",
@@ -2752,6 +2887,10 @@
         "command": {
           "description": "A shell command or path to a script that displays session information (context usage, costs, git status, etc.) by reading JSON data from stdin and writing output to stdout. See https://code.claude.com/docs/en/statusline",
           "type": "string"
+        },
+        "hideVimModeIndicator": {
+          "description": "Set to true when your status line script renders the vim mode indicator itself, to suppress the built-in vim mode display. See https://code.claude.com/docs/en/statusline#manually-configure-a-status-line",
+          "type": "boolean"
         },
         "padding": {
           "description": "Optional number of extra horizontal spacing characters added to the status line content; defaults to 0.",
@@ -2991,6 +3130,27 @@
       ],
       "description": "(Managed settings) Block non-plugin customization sources for the listed surfaces. Array form locks specific surfaces (e.g., [\"skills\", \"hooks\"]); true locks all four; false is an explicit no-op. See https://code.claude.com/docs/en/plugins-reference"
     },
+    "subagentStatusLine": {
+      "additionalProperties": false,
+      "description": "Status line configuration for subagent sessions. See https://code.claude.com/docs/en/statusline#subagent-status-lines",
+      "properties": {
+        "command": {
+          "description": "Shell command to run for the subagent status line",
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "const": "command",
+          "description": "Must be \"command\"",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "command"
+      ],
+      "type": "object"
+    },
     "teammateMode": {
       "default": "auto",
       "description": "How agent team teammates display: \"auto\" picks split panes in tmux or iTerm2, in-process otherwise. Agent teams are experimental and disabled by default. Enable them by adding CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to your settings.json or environment. See https://code.claude.com/docs/en/agent-teams",
@@ -3035,6 +3195,24 @@
       "additionalProperties": false,
       "description": "Configuration for --worktree sessions. See https://code.claude.com/docs/en/settings#worktree-settings",
       "properties": {
+        "baseRef": {
+          "default": "fresh",
+          "description": "Whether to branch worktrees from origin/<default> (fresh) or local HEAD (head). Default: fresh. Set to 'head' to preserve unpushed commits in new worktrees. See https://code.claude.com/docs/en/settings#worktree-settings",
+          "enum": [
+            "fresh",
+            "head"
+          ],
+          "type": "string"
+        },
+        "bgIsolation": {
+          "default": "worktree",
+          "description": "Isolation mode for background sessions. \"worktree\" blocks Edit/Write in main checkout until EnterWorktree is called; \"none\" lets background jobs edit the working copy directly without EnterWorktree, for repos where worktrees are impractical. See https://code.claude.com/docs/en/settings#worktree-settings",
+          "enum": [
+            "worktree",
+            "none"
+          ],
+          "type": "string"
+        },
         "sparsePaths": {
           "description": "Directories to check out in each worktree via git sparse-checkout (cone mode). Only the listed paths are written to disk, which is faster in large monorepos. See https://code.claude.com/docs/en/settings#worktree-settings",
           "examples": [
