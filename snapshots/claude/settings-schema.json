@@ -2598,6 +2598,19 @@
           "description": "Enable sandboxed bash. See https://code.claude.com/docs/en/sandboxing#enable-sandboxing",
           "type": "boolean"
         },
+        "enabledPlatforms": {
+          "description": "Limit the entire sandbox configuration to the listed platforms. On platforms not in the list the sandbox config is inert: no sandbox, no auto-allow, no startup warning, and no failIfUnavailable exit. When omitted, all supported platforms are included. Only honored from managed (policy) settings.",
+          "items": {
+            "enum": [
+              "macos",
+              "linux",
+              "wsl",
+              "windows"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
         "excludedCommands": {
           "description": "Commands that should never run in the sandbox (e.g., [\"git\", \"docker\"]). See https://code.claude.com/docs/en/sandboxing#configure-sandboxing",
           "items": {
