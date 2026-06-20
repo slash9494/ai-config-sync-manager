@@ -1,0 +1,217 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const cliPath = fileURLToPath(new URL("../bin/ai-config-sync.mjs", import.meta.url));
+
+function createFixture() {
+  const root = mkdtempSync(join(tmpdir(), "ledger-test-"));
+  const home = join(root, "home");
+  const project = join(root, "project");
+  mkdirSync(home, { recursive: true });
+  mkdirSync(project, { recursive: true });
+  return { root, home, project };
+}
+
+function runCli(fixture, args, extraEnv = {}) {
+  return execFileSync(process.execPath, [cliPath, ...args], {
+    cwd: fixture.project,
+    env: { ...process.env, AI_CONFIG_SYNC_HOME: fixture.home, ...extraEnv },
+    encoding: "utf8",
+  });
+}
+
+function writeJson(path, value) {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function writeCodexMcp(fixture, name) {
+  mkdirSync(join(fixture.project, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".codex/config.toml"),
+    [`[mcp_servers.${name}]`, 'command = "npx"', `args = ["${name}-mcp"]`, ""].join("\n")
+  );
+}
+
+// Returns only the ledger JSON; runCli mixes it with the human-readable banner on stdout.
+function applyWithLedgerJson(fixture, includeArg, extraEnv = {}) {
+  const output = runCli(
+    fixture,
+    ["sync", "--scope", "project", "--include", includeArg, "--apply", "--ledger-json"],
+    extraEnv
+  );
+  const end = output.indexOf("\nAI Config Sync Manager sync");
+  return JSON.parse(output.slice(0, end === -1 ? output.length : end));
+}
+
+const SHA256 = /^sha256:[0-9a-f]{64}$/;
+
+test("sync apply ledger emits the frozen JSON shape with plan_hash, mode, scope, and summary", () => {
+  const fixture = createFixture();
+  writeCodexMcp(fixture, "notion");
+
+  const ledger = applyWithLedgerJson(fixture, "mcp:notion", { AI_CONFIG_SYNC_HOST: "codex" });
+
+  assert.match(ledger.plan_hash, SHA256);
+  assert.equal(ledger.mode, "apply");
+  assert.equal(ledger.scope, "project");
+  assert.equal(ledger.writes_started, true);
+  assert.ok(Array.isArray(ledger.items));
+  assert.deepEqual(Object.keys(ledger.summary).sort(), ["applied", "error", "noop", "skipped"]);
+});
+
+test("sync apply ledger records a per-item entry with null before-hash for an absent target", () => {
+  const fixture = createFixture();
+  writeCodexMcp(fixture, "notion");
+
+  const ledger = applyWithLedgerJson(fixture, "mcp:notion", { AI_CONFIG_SYNC_HOST: "codex" });
+
+  assert.equal(ledger.items.length, 1);
+  const item = ledger.items[0];
+  assert.equal(item.scope, "project");
+  assert.equal(item.area, "mcp");
+  assert.equal(item.item, "notion");
+  assert.equal(item.action, "merge-mcp-servers");
+  assert.equal(item.status, "applied");
+  assert.equal(item.before_hash, null);
+  assert.match(item.after_hash, SHA256);
+  assert.deepEqual(ledger.summary, { applied: 1, skipped: 0, error: 0, noop: 0 });
+});
+
+test("sync apply ledger records before-hash and backup_path when overwriting an existing target", () => {
+  const fixture = createFixture();
+  writeCodexMcp(fixture, "notion");
+  writeJson(join(fixture.project, ".mcp.json"), {
+    mcpServers: { existing: { type: "stdio", command: "old", args: [] } },
+  });
+
+  const ledger = applyWithLedgerJson(fixture, "mcp:notion", { AI_CONFIG_SYNC_HOST: "codex" });
+  const item = ledger.items.find((entry) => entry.item === "notion");
+
+  assert.match(item.before_hash, SHA256);
+  assert.match(item.after_hash, SHA256);
+  assert.notEqual(item.before_hash, item.after_hash);
+  assert.ok(item.backup_path && item.backup_path.startsWith("/"));
+});
+
+test("sync apply ledger hashes a copied skill directory as a tree hash", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/skills/review"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".claude/skills/review/SKILL.md"),
+    "---\nname: review\n---\n# Review\n\nBody.\n"
+  );
+
+  const ledger = applyWithLedgerJson(fixture, "skills:review");
+  const item = ledger.items.find((entry) => entry.item === "review");
+
+  assert.equal(item.area, "skills");
+  assert.equal(item.action, "copy-missing-skills");
+  assert.equal(item.status, "applied");
+  assert.equal(item.before_hash, null);
+  assert.match(item.after_hash, SHA256);
+  assert.deepEqual(ledger.summary, { applied: 1, skipped: 0, error: 0, noop: 0 });
+});
+
+test("sync apply ledger records a merged agent file per item", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".claude/agents/helper.md"),
+    "---\nname: helper\ndescription: helps\n---\nBody.\n"
+  );
+
+  const ledger = applyWithLedgerJson(fixture, "agents:helper");
+  const item = ledger.items.find((entry) => entry.item === "helper");
+
+  assert.equal(item.area, "agents");
+  assert.equal(item.action, "merge-agents");
+  assert.equal(item.status, "applied");
+  assert.match(item.after_hash, SHA256);
+});
+
+test("sync apply ledger records merged permission items", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".codex"), { recursive: true });
+  writeFileSync(join(fixture.project, ".codex/config.toml"), "");
+  writeJson(join(fixture.project, ".claude/settings.json"), {
+    permissions: { allow: ["Bash"] },
+  });
+
+  const ledger = applyWithLedgerJson(fixture, "permissions:Bash");
+  const item = ledger.items.find((entry) => entry.area === "permissions");
+
+  assert.ok(item, "expected a permissions ledger entry");
+  assert.equal(item.action, "merge-settings-items");
+  assert.equal(item.status, "applied");
+  assert.equal(ledger.summary.applied >= 1, true);
+});
+
+test("sync apply ledger reports noop summary when nothing needs applying", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude"), { recursive: true });
+  mkdirSync(join(fixture.project, ".codex"), { recursive: true });
+
+  const ledger = applyWithLedgerJson(fixture, "mcp");
+
+  assert.equal(ledger.writes_started, true);
+  assert.deepEqual(ledger.items, []);
+  assert.deepEqual(ledger.summary, { applied: 0, skipped: 0, error: 0, noop: 0 });
+});
+
+test("sync ledger flags are a no-op in dry-run mode", () => {
+  const fixture = createFixture();
+  writeCodexMcp(fixture, "notion");
+
+  const output = runCli(
+    fixture,
+    ["sync", "--scope", "project", "--include", "mcp:notion", "--ledger-json"],
+    { AI_CONFIG_SYNC_HOST: "codex" }
+  );
+
+  assert.ok(output.startsWith("AI Config Sync Manager sync"));
+  assert.doesNotMatch(output, /"plan_hash"/);
+});
+
+test("sync --ledger <path> writes the ledger JSON to disk without printing it", () => {
+  const fixture = createFixture();
+  writeCodexMcp(fixture, "notion");
+  const ledgerPath = join(fixture.root, "ledger.json");
+
+  const output = runCli(
+    fixture,
+    ["sync", "--scope", "project", "--include", "mcp:notion", "--apply", "--ledger", ledgerPath],
+    { AI_CONFIG_SYNC_HOST: "codex" }
+  );
+
+  assert.doesNotMatch(output, /"plan_hash"/);
+  const written = JSON.parse(readFileSync(ledgerPath, "utf8"));
+  assert.match(written.plan_hash, SHA256);
+  assert.deepEqual(written.summary, { applied: 1, skipped: 0, error: 0, noop: 0 });
+});
+
+test("sync apply ledger marks writes_started and records an error item on a forced write failure", () => {
+  const fixture = createFixture();
+  writeCodexMcp(fixture, "notion");
+  // Make the Claude MCP target file read-only so the merge write throws mid-apply.
+  const mcpTarget = join(fixture.project, ".mcp.json");
+  writeJson(mcpTarget, { mcpServers: {} });
+  chmodSync(mcpTarget, 0o444);
+
+  try {
+    const ledger = applyWithLedgerJson(fixture, "mcp:notion", { AI_CONFIG_SYNC_HOST: "codex" });
+    assert.equal(ledger.writes_started, true);
+    const errored = ledger.items.find((entry) => entry.status === "error");
+    assert.ok(errored, "expected an error ledger entry");
+    assert.equal(errored.area, "mcp");
+    assert.equal(ledger.summary.error >= 1, true);
+  } finally {
+    chmodSync(mcpTarget, 0o644);
+    rmSync(fixture.root, { recursive: true, force: true });
+  }
+});

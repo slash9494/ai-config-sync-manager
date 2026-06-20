@@ -18,6 +18,7 @@ import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { serializeYamlScalar } from "./util/yaml-scalar.mjs";
+import { hashPath } from "./util/ledger-hash.mjs";
 
 const hosts = new Set(["claude", "codex"]);
 const [command = "help", ...argv] = process.argv.slice(2);
@@ -94,6 +95,7 @@ async function main() {
       const plans = createSyncPlans(options, mode);
       if (mode === "apply") {
         for (const plan of plans) applySyncPlan(plan);
+        emitLedger(plans, options);
       }
       console.log(
         options.planJson ? JSON.stringify(formatPlanOutput(plans), null, 2) : renderSyncPlans(plans)
@@ -1273,6 +1275,8 @@ function createSyncPlan(options, mode) {
     operations,
     vocabFindings,
     results: [],
+    ledger: [],
+    writesStarted: false,
   };
 }
 
@@ -3709,12 +3713,18 @@ function lineContainsAnyTerm(line, terms) {
 function applySyncPlan(plan) {
   pruneRetention(`${home}/.ai-config-sync-manager/backups`, BACKUP_RETENTION - 1);
   mkdirSync(plan.backupRoot, { recursive: true });
+  plan.writesStarted = true;
 
   for (const operation of plan.operations) {
     if (operation.approvalRequired) {
-      plan.results.push({
+      const message = `${operation.scope}/${operation.area} requires explicit approval`;
+      plan.results.push({ status: "skipped", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: operation.area,
+        action: operation.action,
         status: "skipped",
-        message: `${operation.scope}/${operation.area} requires explicit approval`,
+        message,
       });
       continue;
     }
@@ -3735,15 +3745,25 @@ function applySyncPlan(plan) {
       } else if (operation.action === "delete-items") {
         applyDeleteItems(plan, operation);
       } else {
-        plan.results.push({
+        const message = `${operation.scope}/${operation.area} action ${operation.action} is not implemented`;
+        plan.results.push({ status: "skipped", message });
+        recordLedger(plan, {
+          area: operation.area,
+          item: operation.area,
+          action: operation.action,
           status: "skipped",
-          message: `${operation.scope}/${operation.area} action ${operation.action} is not implemented`,
+          message,
         });
       }
     } catch (error) {
-      plan.results.push({
+      const message = `${operation.scope}/${operation.area}: ${error instanceof Error ? error.message : "unknown error"}`;
+      plan.results.push({ status: "error", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: operation.area,
+        action: operation.action,
         status: "error",
-        message: `${operation.scope}/${operation.area}: ${error instanceof Error ? error.message : "unknown error"}`,
+        message,
       });
     }
   }
@@ -3797,31 +3817,106 @@ function writeCallArchive(plan) {
   writeFileSync(plan.callArchivePath, `${JSON.stringify(plan.callArchive, null, 2)}\n`);
 }
 
+function planIntentHash(plan) {
+  const intent = (plan.operations ?? []).map((operation) => ({
+    scope: operation.scope,
+    area: operation.area,
+    action: operation.action,
+    from: operation.from,
+    to: operation.to,
+    itemNames: operation.itemNames ?? null,
+    skillNames: operation.skillNames ?? null,
+    agentNames: operation.agentNames ?? null,
+    serverNames: operation.serverNames ?? null,
+    targetPath: operation.targetPath ?? null,
+  }));
+  return `sha256:${createHash("sha256").update(JSON.stringify(intent)).digest("hex")}`;
+}
+
+function buildLedger(plan) {
+  const items = plan.ledger ?? [];
+  const summary = { applied: 0, skipped: 0, error: 0, noop: 0 };
+  for (const item of items) {
+    if (item.status in summary) summary[item.status] += 1;
+  }
+  return {
+    plan_hash: planIntentHash(plan),
+    mode: plan.mode,
+    scope: plan.scope,
+    writes_started: Boolean(plan.writesStarted),
+    items,
+    summary,
+  };
+}
+
+function emitLedger(plans, options) {
+  if (!options.ledgerJson && !options.ledgerPath) return;
+  const ledgers = plans.map((plan) => buildLedger(plan));
+  const output = ledgers.length === 1 ? ledgers[0] : { ledgers };
+  const serialized = `${JSON.stringify(output, null, 2)}\n`;
+  if (options.ledgerPath) {
+    const resolved = resolve(expandHome(options.ledgerPath));
+    mkdirSync(dirname(resolved), { recursive: true });
+    writeFileSync(resolved, serialized);
+  }
+  if (options.ledgerJson) {
+    process.stdout.write(serialized);
+  }
+}
+
 function applyCopyFile(plan, operation) {
   if (!existsSync(operation.sourcePath)) {
-    plan.results.push({ status: "skipped", message: `source missing: ${operation.sourcePath}` });
+    const message = `source missing: ${operation.sourcePath}`;
+    plan.results.push({ status: "skipped", message });
+    recordLedger(plan, {
+      area: operation.area,
+      item: operation.targetPath,
+      action: operation.action,
+      status: "skipped",
+      message,
+    });
     return;
   }
 
   mkdirSync(dirname(operation.targetPath), { recursive: true });
+  const beforeHash = hashPath(operation.targetPath);
+  const backupPathTaken = backupTargetPath(plan, operation.targetPath);
   backupPath(plan, operation.targetPath);
   copyFileSync(operation.sourcePath, operation.targetPath);
-  plan.results.push({
+  const message = `copied ${operation.sourcePath} -> ${operation.targetPath}`;
+  plan.results.push({ status: "applied", message });
+  recordLedger(plan, {
+    area: operation.area,
+    item: operation.targetPath,
+    action: operation.action,
     status: "applied",
-    message: `copied ${operation.sourcePath} -> ${operation.targetPath}`,
+    target: operation.targetPath,
+    beforeHash,
+    backupPath: backupPathTaken,
+    message,
   });
 }
 
 function applyWriteInstructions(plan, operation) {
   mkdirSync(dirname(operation.targetPath), { recursive: true });
+  const beforeHash = hashPath(operation.targetPath);
+  const backupPathTaken = backupTargetPath(plan, operation.targetPath);
   backupPath(plan, operation.targetPath);
   writeFileSync(
     operation.targetPath,
     operation.content.endsWith("\n") ? operation.content : `${operation.content}\n`
   );
-  plan.results.push({
+  const message = `wrote instructions ${operation.sourcePath} -> ${operation.targetPath}`;
+  plan.results.push({ status: "applied", message });
+  recordLedger(plan, {
+    area: operation.area,
+    item: operation.targetPath,
+    action: operation.action,
     status: "applied",
-    message: `wrote instructions ${operation.sourcePath} -> ${operation.targetPath}`,
+    target: operation.targetPath,
+    beforeHash,
+    backupPath: backupPathTaken,
+    message,
   });
 }
 
@@ -3836,15 +3931,36 @@ function applyCopyMissingSkills(plan, operation) {
     const target = join(operation.targetPath, skillName);
 
     if (!existsSync(source)) {
-      plan.results.push({ status: "skipped", message: `skill source missing: ${source}` });
+      const message = `skill source missing: ${source}`;
+      plan.results.push({ status: "skipped", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: skillName,
+        action: operation.action,
+        status: "skipped",
+        message,
+      });
       continue;
     }
 
+    const beforeHash = hashPath(target);
+    let backupPathTaken = null;
     if (existsSync(target)) {
       if (!overwrite.has(skillName)) {
-        plan.results.push({ status: "skipped", message: `skill already exists: ${target}` });
+        const message = `skill already exists: ${target}`;
+        plan.results.push({ status: "skipped", message });
+        recordLedger(plan, {
+          area: operation.area,
+          item: skillName,
+          action: operation.action,
+          status: "skipped",
+          target,
+          beforeHash,
+          message,
+        });
         continue;
       }
+      backupPathTaken = backupTargetPath(plan, target);
       backupPath(plan, target);
       rmSync(target, { recursive: true, force: true });
     }
@@ -3852,9 +3968,17 @@ function applyCopyMissingSkills(plan, operation) {
     copySkillWithMappings(source, target, operation.from, operation.to, {
       callArchive: plan.callArchive,
     });
-    plan.results.push({
+    const message = `${overwrite.has(skillName) ? "replaced" : "copied"} skill ${skillName}`;
+    plan.results.push({ status: "applied", message });
+    recordLedger(plan, {
+      area: operation.area,
+      item: skillName,
+      action: operation.action,
       status: "applied",
-      message: `${overwrite.has(skillName) ? "replaced" : "copied"} skill ${skillName}`,
+      target,
+      beforeHash,
+      backupPath: backupPathTaken,
+      message,
     });
   }
 }
@@ -3883,7 +4007,15 @@ function applyMergeAgents(plan, operation) {
     if (operation.to === "codex") {
       const sourceAgent = sourceClaudeIndex?.get(agentName);
       if (!sourceAgent) {
-        plan.results.push({ status: "skipped", message: `agent source missing: ${agentName}` });
+        const message = `agent source missing: ${agentName}`;
+        plan.results.push({ status: "skipped", message });
+        recordLedger(plan, {
+          area: operation.area,
+          item: agentName,
+          action: operation.action,
+          status: "skipped",
+          message,
+        });
         continue;
       }
       const targetPath = agentTargetPath(agentName, operation.targetPath, "codex", sourceAgent);
@@ -3891,7 +4023,17 @@ function applyMergeAgents(plan, operation) {
         existingCodexIndex?.get(agentName) ??
         existingCodexIndex?.get(sourceAgent.name.split("/").pop());
       if (existingAgent && !overwrite.has(agentName)) {
-        plan.results.push({ status: "skipped", message: `agent already exists: ${targetPath}` });
+        const message = `agent already exists: ${targetPath}`;
+        plan.results.push({ status: "skipped", message });
+        recordLedger(plan, {
+          area: operation.area,
+          item: agentName,
+          action: operation.action,
+          status: "skipped",
+          target: targetPath,
+          beforeHash: hashPath(targetPath),
+          message,
+        });
         continue;
       }
 
@@ -3903,11 +4045,21 @@ function applyMergeAgents(plan, operation) {
         callArchive: plan.callArchive,
       });
       mkdirSync(dirname(targetPath), { recursive: true });
+      const beforeHash = hashPath(existingAgent ? existingAgent.path : targetPath);
+      const backupPathTaken = existingAgent ? backupTargetPath(plan, existingAgent.path) : null;
       if (existingAgent) backupPath(plan, existingAgent.path);
       writeFileSync(targetPath, serializeCodexAgentFile(codexFields));
-      plan.results.push({
+      const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
+      plan.results.push({ status: "applied", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: agentName,
+        action: operation.action,
         status: "applied",
-        message: `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`,
+        target: targetPath,
+        beforeHash,
+        backupPath: backupPathTaken,
+        message,
       });
       continue;
     }
@@ -3915,13 +4067,31 @@ function applyMergeAgents(plan, operation) {
     const sourceAgent =
       sourceCodexIndex?.get(agentName) ?? sourceCodexIndex?.get(agentName.split("/").pop());
     if (!sourceAgent) {
-      plan.results.push({ status: "skipped", message: `agent source missing: ${agentName}` });
+      const message = `agent source missing: ${agentName}`;
+      plan.results.push({ status: "skipped", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: agentName,
+        action: operation.action,
+        status: "skipped",
+        message,
+      });
       continue;
     }
     const existingAgent = existingClaudeIndex?.get(agentName);
     const targetPath = agentTargetPath(agentName, operation.targetPath, "claude", existingAgent);
     if (existingAgent && !overwrite.has(agentName)) {
-      plan.results.push({ status: "skipped", message: `agent already exists: ${targetPath}` });
+      const message = `agent already exists: ${targetPath}`;
+      plan.results.push({ status: "skipped", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: agentName,
+        action: operation.action,
+        status: "skipped",
+        target: targetPath,
+        beforeHash: hashPath(targetPath),
+        message,
+      });
       continue;
     }
 
@@ -3934,17 +4104,29 @@ function applyMergeAgents(plan, operation) {
       callArchive: plan.callArchive,
     });
     mkdirSync(dirname(targetPath), { recursive: true });
+    const beforeHash = hashPath(existingAgent ? existingAgent.path : targetPath);
+    const backupPathTaken = existingAgent ? backupTargetPath(plan, existingAgent.path) : null;
     if (existingAgent) backupPath(plan, existingAgent.path);
     writeFileSync(targetPath, serializeClaudeAgentFile(claude.frontmatter, claude.body));
-    plan.results.push({
+    const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
+    plan.results.push({ status: "applied", message });
+    recordLedger(plan, {
+      area: operation.area,
+      item: agentName,
+      action: operation.action,
       status: "applied",
-      message: `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`,
+      target: targetPath,
+      beforeHash,
+      backupPath: backupPathTaken,
+      message,
     });
   }
 }
 
 function applyMergeSettingsItems(plan, operation) {
   mkdirSync(dirname(operation.targetPath), { recursive: true });
+  const beforeHash = hashPath(operation.targetPath);
+  const backupPathTaken = backupTargetPath(plan, operation.targetPath);
   backupPath(plan, operation.targetPath);
   if (operation.area === "permissions" && operation.to === "codex") {
     backupPath(plan, codexRulesPath(operation.targetPath));
@@ -3972,10 +4154,33 @@ function applyMergeSettingsItems(plan, operation) {
     );
   }
 
-  plan.results.push({
+  const message = `merged ${operation.area} item(s): ${(operation.itemNames ?? []).join(", ")}`;
+  plan.results.push({ status: "applied", message });
+  recordLedgerForBatch(plan, operation, operation.itemNames ?? [], {
     status: "applied",
-    message: `merged ${operation.area} item(s): ${(operation.itemNames ?? []).join(", ")}`,
+    target: operation.targetPath,
+    beforeHash,
+    backupPath: backupPathTaken,
+    message,
   });
+}
+
+// Batch mutations (settings/mcp/delete) touch a single target file for many items;
+// emit one ledger entry per item sharing that file's before/after hash.
+function recordLedgerForBatch(plan, operation, itemNames, shared) {
+  const items = itemNames.length > 0 ? itemNames : [operation.area];
+  for (const item of items) {
+    recordLedger(plan, {
+      area: operation.area,
+      item,
+      action: operation.action,
+      status: shared.status,
+      target: shared.target,
+      beforeHash: shared.beforeHash,
+      backupPath: shared.backupPath,
+      message: shared.message,
+    });
+  }
 }
 
 function archiveUnsupportedAgentPermissions(plan, itemNames) {
@@ -3998,6 +4203,8 @@ function archiveUnsupportedAgentPermissions(plan, itemNames) {
 
 function applyMergeMcpServers(plan, operation) {
   mkdirSync(dirname(operation.targetPath), { recursive: true });
+  const beforeHash = hashPath(operation.targetPath);
+  const backupPathTaken = backupTargetPath(plan, operation.targetPath);
   backupPath(plan, operation.targetPath);
 
   if (operation.to === "codex") {
@@ -4016,19 +4223,28 @@ function applyMergeMcpServers(plan, operation) {
     );
   }
 
-  plan.results.push({
+  const message = `merged MCP servers ${operation.from} -> ${operation.to}: ${(operation.serverNames ?? []).join(", ")}`;
+  plan.results.push({ status: "applied", message });
+  recordLedgerForBatch(plan, operation, operation.serverNames ?? [], {
     status: "applied",
-    message: `merged MCP servers ${operation.from} -> ${operation.to}: ${(operation.serverNames ?? []).join(", ")}`,
+    target: operation.targetPath,
+    beforeHash,
+    backupPath: backupPathTaken,
+    message,
   });
 }
 
 function applyDeleteItems(plan, operation) {
+  let deleteBeforeHash = null;
+  let deleteBackupPath = null;
   if (operation.area === "skills") {
     deleteSkillItems(plan, operation);
   } else if (operation.area === "agents") {
     deleteAgentItems(plan, operation);
   } else {
     mkdirSync(dirname(operation.targetPath), { recursive: true });
+    deleteBeforeHash = hashPath(operation.targetPath);
+    deleteBackupPath = backupTargetPath(plan, operation.targetPath);
     backupPath(plan, operation.targetPath);
 
     if (operation.area === "mcp") {
@@ -4067,10 +4283,19 @@ function applyDeleteItems(plan, operation) {
     operation.area === "permissions" && operation.to === "codex"
       ? summarizeCodexPermissionDeletePaths(operation.itemNames ?? [])
       : "";
-  plan.results.push({
-    status: "applied",
-    message: `deleted ${operation.area} item(s) from ${operation.to}${pathSummary}: ${(operation.itemNames ?? []).join(", ")}`,
-  });
+  const message = `deleted ${operation.area} item(s) from ${operation.to}${pathSummary}: ${(operation.itemNames ?? []).join(", ")}`;
+  plan.results.push({ status: "applied", message });
+
+  // skills/agents delete is per-target; those branches record their own ledger entries above.
+  if (operation.area !== "skills" && operation.area !== "agents") {
+    recordLedgerForBatch(plan, operation, operation.itemNames ?? [], {
+      status: "applied",
+      target: operation.targetPath,
+      beforeHash: deleteBeforeHash,
+      backupPath: deleteBackupPath,
+      message,
+    });
+  }
 }
 
 function summarizeCodexPermissionDeletePaths(itemNames) {
@@ -4099,8 +4324,20 @@ function deleteSkillItems(plan, operation) {
     const targetDir = targetIndex[skillName] ?? operation.targetPath;
     const target = join(targetDir, skillName);
     if (!existsSync(target)) continue;
+    const beforeHash = hashPath(target);
+    const backupPathTaken = backupTargetPath(plan, target);
     backupPath(plan, target);
     rmSync(target, { recursive: true, force: true });
+    recordLedger(plan, {
+      area: operation.area,
+      item: skillName,
+      action: operation.action,
+      status: "applied",
+      target,
+      beforeHash,
+      backupPath: backupPathTaken,
+      message: `deleted skill ${skillName}`,
+    });
   }
 }
 
@@ -4113,8 +4350,20 @@ function deleteAgentItems(plan, operation) {
   for (const agentName of operation.agentNames ?? operation.itemNames ?? []) {
     const existing = targetIndex.get(agentName) ?? targetIndex.get(agentName.split("/").pop());
     if (!existing) continue;
+    const beforeHash = hashPath(existing.path);
+    const backupPathTaken = backupTargetPath(plan, existing.path);
     backupPath(plan, existing.path);
     rmSync(existing.path, { force: true });
+    recordLedger(plan, {
+      area: operation.area,
+      item: agentName,
+      action: operation.action,
+      status: "applied",
+      target: existing.path,
+      beforeHash,
+      backupPath: backupPathTaken,
+      message: `deleted agent ${agentName}`,
+    });
   }
 }
 
@@ -5645,6 +5894,25 @@ function backupPath(plan, targetPath) {
   const backupTarget = join(plan.backupRoot, targetPath.replace(/^\/+/, ""));
   mkdirSync(dirname(backupTarget), { recursive: true });
   cpSync(targetPath, backupTarget, { recursive: true, dereference: false });
+}
+
+function backupTargetPath(plan, targetPath) {
+  return existsSync(targetPath) ? join(plan.backupRoot, targetPath.replace(/^\/+/, "")) : null;
+}
+
+function recordLedger(plan, entry) {
+  if (!plan.ledger) return;
+  plan.ledger.push({
+    scope: plan.scope,
+    area: entry.area,
+    item: entry.item,
+    action: entry.action,
+    status: entry.status,
+    before_hash: entry.beforeHash ?? null,
+    after_hash: entry.target ? hashPath(entry.target) : null,
+    backup_path: entry.backupPath ?? null,
+    message: entry.message,
+  });
 }
 
 function diffScope(scope, ignoreRules = []) {
@@ -7665,6 +7933,8 @@ function parseSync(argv) {
   let dryRun = false;
   let apply = false;
   let planJson = false;
+  let ledgerJson = false;
+  let ledgerPath = null;
   let scope = null;
   const selectors = emptySelectors();
 
@@ -7676,6 +7946,12 @@ function parseSync(argv) {
       apply = true;
     } else if (token === "--plan-json") {
       planJson = true;
+    } else if (token === "--ledger-json") {
+      ledgerJson = true;
+    } else if (token === "--ledger") {
+      ledgerPath = argv[index + 1];
+      if (!ledgerPath) throw new Error("Missing value for --ledger");
+      index += 1;
     } else if (token === "--from" || token === "--to") {
       const value = argv[index + 1];
       if (!hosts.has(value)) throw new Error(`Missing or invalid value for ${token}`);
@@ -7698,7 +7974,18 @@ function parseSync(argv) {
   if (from === to) throw new Error("--from and --to must be different hosts.");
 
   const scopes = scope ?? ["global", "project"];
-  return { from, to, routeExplicit, apply, planJson, scope: scopes[0], scopes, selectors };
+  return {
+    from,
+    to,
+    routeExplicit,
+    apply,
+    planJson,
+    ledgerJson,
+    ledgerPath,
+    scope: scopes[0],
+    scopes,
+    selectors,
+  };
 }
 
 function parseScopes(value, allowAll) {
@@ -7786,6 +8073,8 @@ Options:
   --dry-run                      Preview planned operations without writing files (default)
   --apply                        Apply planned operations with backups
   --plan-json                    Print the sync plan as JSON
+  --ledger-json                  Print the apply ledger as JSON to stdout (--apply only)
+  --ledger <path>                Write the apply ledger JSON to <path> (--apply only)
   --from claude|codex            Source host (overrides AI_CONFIG_SYNC_HOST)
   --to claude|codex              Target host (overrides AI_CONFIG_SYNC_HOST)
   --scope global|project|all     Limit sync scope
