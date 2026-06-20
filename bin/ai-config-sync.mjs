@@ -7352,7 +7352,11 @@ function maskedSkillContentHash(path, sourceHost, targetHost, terms) {
       const text =
         sourceHost === targetHost
           ? canonical.toString("utf8")
-          : transformTextForHost(canonical.toString("utf8"), sourceHost, targetHost);
+          : normalizeSkillFileText(
+              transformTextForHost(canonical.toString("utf8"), sourceHost, targetHost),
+              raw,
+              absolute
+            );
       content = Buffer.from(maskLinesContaining(text, terms), "utf8");
     } else {
       content = canonical;
@@ -7398,7 +7402,14 @@ function overriddenTransformedSkillContentHash(path, sourceHost, targetHost, ove
     const absolute = join(path, raw);
     const masked = readSkillFileMaskedForHash(path, raw, sourceHost, overrides);
     const content = isTextMappingFile(absolute)
-      ? Buffer.from(transformTextForHost(masked.toString("utf8"), sourceHost, targetHost), "utf8")
+      ? Buffer.from(
+          normalizeSkillFileText(
+            transformTextForHost(masked.toString("utf8"), sourceHost, targetHost),
+            raw,
+            absolute
+          ),
+          "utf8"
+        )
       : masked;
     hash.update(normalized);
     hash.update(content);

@@ -884,6 +884,94 @@ test("status treats skill differing only by model alias as equivalent (no phanto
   assert.equal(report.entries.length, 0);
 });
 
+test("status treats skill differing by model alias plus a term-masked line as equivalent", () => {
+  // Regression for #10 sibling path: maskedSkillContentHash transforms to the
+  // host-native model alias but never folds it back to canonical the way
+  // skillContentHash does. When a skill needs BOTH a term ignore rule (to mask a
+  // diverging prose line) AND the model fold, the masked hash ends on gpt-5.5 vs
+  // canonical opus and the skill surfaces as a phantom manual conflict.
+  const fixture = createFixture();
+  writeSkillManifest(
+    join(fixture.project, ".claude/skills/masked-alias"),
+    "claude",
+    [
+      "---",
+      "name: masked-alias",
+      "model: Opus",
+      "---",
+      "# X",
+      "refs .claude/docs/repo-analysis/ here",
+      "common line",
+      "",
+    ].join("\n")
+  );
+  writeSkillManifest(
+    join(fixture.project, ".agents/skills/masked-alias"),
+    "codex",
+    ["---", "name: masked-alias", "model: gpt-5.5", "---", "# X", "common line", ""].join("\n")
+  );
+  mkdirSync(join(fixture.project, ".ai-config-sync-manager"), { recursive: true });
+  writeJson(join(fixture.project, ".ai-config-sync-manager/status-ignore.json"), {
+    version: 1,
+    exclude: [{ area: "skills", term: ".claude/docs/repo-analysis/" }],
+  });
+
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "project", "--include", "skills:masked-alias", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
+test("status treats skill differing by model alias plus an override-masked line as equivalent", () => {
+  // Regression for #10 sibling path: overriddenTransformedSkillContentHash layers
+  // transformTextForHost over paraphrase masking but never folds the model token
+  // back to canonical. A skill needing BOTH a paraphrase override (to mask a
+  // diverging prose line) AND the model fold ends on gpt-5.5 vs canonical opus,
+  // surfacing as a phantom manual conflict even though the prose is overridden.
+  const fixture = createFixture();
+  const projectReal = realpathSync(fixture.project);
+  const claudeSkill = join(projectReal, ".claude/skills/override-alias");
+  const codexSkill = join(projectReal, ".agents/skills/override-alias");
+  mkdirSync(claudeSkill, { recursive: true });
+  mkdirSync(codexSkill, { recursive: true });
+  writeFileSync(
+    join(claudeSkill, "SKILL.md"),
+    "---\nname: override-alias\nmodel: Opus\n---\n# X\nRead the docs.\n"
+  );
+  writeFileSync(
+    join(codexSkill, "SKILL.md"),
+    "---\nname: override-alias\nmodel: gpt-5.5\n---\n# X\nInspect the docs.\n"
+  );
+  writeJson(join(fixture.home, ".ai-config-sync-manager/rules/paraphrase-overrides.json"), {
+    version: 1,
+    overrides: [
+      {
+        id: "override-alias-line6",
+        area: "skills",
+        claude_path: join(claudeSkill, "SKILL.md"),
+        codex_path: join(codexSkill, "SKILL.md"),
+        claude_line: 6,
+        codex_line: 6,
+        claude_text: "Read the docs.",
+        codex_text: "Inspect the docs.",
+      },
+    ],
+  });
+
+  const report = JSON.parse(
+    runCli(fixture, [
+      "status",
+      "--scope",
+      "project",
+      "--include",
+      "skills:override-alias",
+      "--json",
+    ])
+  );
+  assert.equal(report.entries.length, 0);
+  assert.equal(report.paraphraseOverrides.active.length, 1);
+});
+
 test("status preview shows diff in references/* file when manifest is masked", () => {
   // Verifies skillDirChangePreview iterates beyond SKILL.md so a real diff in
   // references/foo.md becomes visible even when the manifest is fully masked
