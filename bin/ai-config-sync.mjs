@@ -7324,7 +7324,14 @@ function transformedSkillContentHash(path, from, to) {
     const absolute = join(path, raw);
     const canonical = readSkillFileForHash(path, raw);
     const content = isTextMappingFile(absolute)
-      ? transformTextForHost(canonical.toString("utf8"), from, to)
+      ? Buffer.from(
+          normalizeSkillFileText(
+            transformTextForHost(canonical.toString("utf8"), from, to),
+            raw,
+            absolute
+          ),
+          "utf8"
+        )
       : canonical;
     hash.update(normalized);
     hash.update(content);

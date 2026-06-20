@@ -858,6 +858,32 @@ test("status treats skill as equivalent when transform and override jointly equa
   assert.equal(report.paraphraseOverrides.stale.length, 0);
 });
 
+test("status treats skill differing only by model alias as equivalent (no phantom conflict)", () => {
+  // Regression for the status equivalence path: transformedSkillContentHash must
+  // fold the transformed model token back to canonical (like skillContentHash),
+  // otherwise the forward (claude->codex) hash ends on a host-native value and
+  // surfaces a manual-risk phantom conflict even though copy/preview already
+  // report equivalence. Claude's "Opus" is a tier *term*, not the alias, so the
+  // alias-keyed normalizeModelAlias leaves it unfolded on read — only the
+  // post-transform normalize closes the gap.
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/skills/aliased"), { recursive: true });
+  mkdirSync(join(fixture.project, ".agents/skills/aliased"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".claude/skills/aliased/SKILL.md"),
+    "---\nname: aliased\nmodel: Opus\n---\n# Aliased\nShared body.\n"
+  );
+  writeFileSync(
+    join(fixture.project, ".agents/skills/aliased/SKILL.md"),
+    "---\nname: aliased\nmodel: gpt-5.5\n---\n# Aliased\nShared body.\n"
+  );
+
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "project", "--include", "skills:aliased", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
 test("status preview shows diff in references/* file when manifest is masked", () => {
   // Verifies skillDirChangePreview iterates beyond SKILL.md so a real diff in
   // references/foo.md becomes visible even when the manifest is fully masked
