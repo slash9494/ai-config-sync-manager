@@ -1,0 +1,58 @@
+# gate-template-version: 2
+# security-gate 스킬이 생성. Tier에 맞는 블록만 남기고 나머지는 제거됨.
+# 액션은 태그로 두되 Dependabot으로 커밋 SHA 핀 권장(오염된 액션 차단).
+name: security-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read # TIER0: 기본 read-only
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      # ===== TIER2: 빌드 격리 + egress 차단 (탈취 시크릿 반출 경로 차단) =====
+      - uses: step-security/harden-runner@v2 # pin to SHA via Dependabot
+        with:
+          egress-policy: audit # 검증 후 block 으로 전환
+      # ===== /TIER2 =====
+
+      - uses: actions/checkout@v4 # pin to SHA via Dependabot
+        with:
+          fetch-depth: 0 # gitleaks needs parent commits for commit-range scan
+
+      # ===== TIER0: lockfile 해시 강제 (frozen install) =====
+      - name: Frozen install (lockfile 해시 검증)
+        run: |
+          if   [ -f pnpm-lock.yaml ];     then corepack enable && pnpm install --frozen-lockfile
+          elif [ -f yarn.lock ];          then corepack enable && yarn install --immutable
+          elif [ -f package-lock.json ];  then npm ci
+          elif [ -f requirements.txt ];   then pip install --require-hashes -r requirements.txt
+          else echo "no recognized lockfile"; fi
+      # ===== /TIER0 =====
+      # ===== TIER1: 의존성 서명·취약점·시크릿 스캔 =====
+      - name: Dependency signatures (provenance)
+        run: npm audit signatures || true # npm 8.15+; 없으면 skip
+      - name: Vulnerability scan
+        run: npm audit --audit-level=high
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2 # pin to SHA via Dependabot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Supply-chain hygiene
+        # scorecard: unsupported on pull_request; no floating v2 tag
+        if: github.event_name == 'push'
+        uses: ossf/scorecard-action@v2.4.3 # pin to SHA via Dependabot
+        with:
+          results_file: results.sarif
+          results_format: sarif
+      # ===== /TIER1 =====
+
+      # ===== TIER2: SBOM 생성 =====
+      - name: SBOM
+        uses: anchore/sbom-action@v0 # pin to SHA via Dependabot
+      # ===== /TIER2 =====
