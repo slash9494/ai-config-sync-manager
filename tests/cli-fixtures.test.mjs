@@ -970,6 +970,7 @@ test("status treats skill differing by model alias plus an override-masked line 
   );
   assert.equal(report.entries.length, 0);
   assert.equal(report.paraphraseOverrides.active.length, 1);
+  assert.equal(report.paraphraseOverrides.stale.length, 0);
 });
 
 test("status preview shows diff in references/* file when manifest is masked", () => {
