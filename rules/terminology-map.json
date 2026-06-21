@@ -64,10 +64,10 @@
         },
         {
           "id": "claude-codex-prefix",
-          "description": "Generic catchall for any .claude/<rest> directory reference. Listed last in this layer so the more specific rules above (agent-file-path with .md<->.toml, skill-file-path with .claude/skills <-> .agents/skills, skill-manifest-filename) match first; this rule then catches everything else (.claude/docs, .claude/hooks, .claude/insights, .claude/insight, .claude/plugins, etc.) with a plain prefix swap to .codex/<rest>. Negative lookaheads carve out the literal exception files handled by the literal rules above (settings.json/mcp.json on the Claude side, config.toml on the Codex side) so those keep their precise filename mapping (settings.json <-> config.toml, mcp.json <-> config.toml [mcp_servers]) instead of getting a partial prefix-only swap.",
+          "description": "Generic catchall for any .claude/<rest> directory reference. Listed last in this layer so the more specific rules above (agent-file-path with .md<->.toml, skill-file-path with .claude/skills <-> .agents/skills, skill-manifest-filename) match first; this rule then catches everything else (.claude/docs, .claude/hooks, .claude/insights, .claude/insight, .claude/plugins, etc.) with a plain prefix swap to .codex/<rest>. Negative lookaheads carve out the literal exception files handled by the literal rules above (settings.json/mcp.json on the Claude side, config.toml on the Codex side) so those keep their precise filename mapping (settings.json <-> config.toml, mcp.json <-> config.toml [mcp_servers]) instead of getting a partial prefix-only swap. rules is also carved out both ways because .claude/rules (path-scoped guidance docs) and .codex/rules (prefix_rule command-approval policy) are unrelated concepts and must not share a target path.",
           "regex": true,
-          "claude_pattern": "\\.claude/(?!settings\\.json\\b|mcp\\.json\\b)",
-          "codex_pattern": "\\.codex/(?!config\\.toml\\b)",
+          "claude_pattern": "\\.claude/(?!settings\\.json\\b|mcp\\.json\\b|rules\\b)",
+          "codex_pattern": "\\.codex/(?!config\\.toml\\b|rules\\b)",
           "claude_replace": ".claude/",
           "codex_replace": ".codex/"
         }

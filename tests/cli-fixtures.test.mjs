@@ -3592,6 +3592,30 @@ test("sync apply preserves precise settings.json / mcp.json / config.toml mappin
   assert.doesNotMatch(codexBody, /\.claude\//);
 });
 
+test("sync apply preserves .claude/rules guidance paths instead of rewriting them to .codex/rules", () => {
+  const fixture = createFixture();
+  writeSkillManifest(
+    join(fixture.project, ".claude/skills/rules-carveout"),
+    "claude",
+    [
+      "# Rules Carveout",
+      "Path scoped rules live under `.claude/rules/go.md`.",
+      "Non-segment match `.claude/rulesfoo/bar.md` is still swapped.",
+      "",
+    ].join("\n")
+  );
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "skills:rules-carveout", "--apply"]);
+  const codexBody = readFileSync(
+    join(fixture.project, ".agents/skills/rules-carveout/SKILL.md"),
+    "utf8"
+  );
+
+  assert.match(codexBody, /\.claude\/rules\/go\.md/);
+  assert.doesNotMatch(codexBody, /\.codex\/rules\/go\.md/);
+  assert.match(codexBody, /\.codex\/rulesfoo\/bar\.md/);
+});
+
 test("sync apply rewrites prose mentions of TeamCreate to multiple spawn_agent invocations on Codex side", () => {
   const fixture = createFixture();
   writeSkillManifest(
