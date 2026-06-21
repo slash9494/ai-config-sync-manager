@@ -13,7 +13,7 @@ jobs:
       issues: write
     steps:
       - name: Ensure labels exist
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v7
         with:
           script: |
             const labels = [
@@ -46,7 +46,7 @@ jobs:
 
       - name: Request review from maintainer for external PRs
         if: github.event.pull_request.head.repo.full_name != github.repository
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v7
         with:
           script: |
             await github.rest.pulls.requestReviewers({
