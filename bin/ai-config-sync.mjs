@@ -264,10 +264,7 @@ function buildStatusSummary(
 function renderStatus(report, format = "default") {
   if (format === "compact") return renderCompactStatus(report);
   if (format === "tree") return renderTreeStatus(report);
-  const hasDetail =
-    report.entries.length > 0 ||
-    (Array.isArray(report.vocabFindings) && report.vocabFindings.length > 0);
-  const detailPath = hasDetail ? writeStatusDetailFile(report) : null;
+  const detailPath = writeStatusDetailFile(report);
 
   const lines = [
     "AI Config Sync Manager status",
@@ -294,7 +291,7 @@ function renderStatus(report, format = "default") {
     lines.push("");
   }
 
-  if (hasDetail && detailPath) {
+  if (detailPath) {
     lines.push(`Detail file: ${detailPath}`);
     lines.push("Open the detail file for the full item list and before/after diff preview.");
     lines.push("");
@@ -3334,7 +3331,11 @@ function skillDirChangePreview(claudeSkillDir, codexSkillDir, from, to, fromLabe
         : readSkillFileForHash(sourceDir, sourceEntry.raw)
     ).toString("utf8");
     if (isTextMappingFile(sourceAbs) && isTextMappingFile(targetAbs)) {
-      sourceContent = transformTextForHost(sourceContent, sourceHost, targetHost);
+      sourceContent = normalizeSkillFileText(
+        transformTextForHost(sourceContent, sourceHost, targetHost),
+        sourceEntry.raw,
+        sourceAbs
+      );
     }
 
     if (targetContent === sourceContent) continue;
@@ -7592,7 +7593,14 @@ function transformedSkillContentHash(path, from, to) {
     const absolute = join(path, raw);
     const canonical = readSkillFileForHash(path, raw);
     const content = isTextMappingFile(absolute)
-      ? transformTextForHost(canonical.toString("utf8"), from, to)
+      ? Buffer.from(
+          normalizeSkillFileText(
+            transformTextForHost(canonical.toString("utf8"), from, to),
+            raw,
+            absolute
+          ),
+          "utf8"
+        )
       : canonical;
     hash.update(normalized);
     hash.update(content);
@@ -7613,7 +7621,11 @@ function maskedSkillContentHash(path, sourceHost, targetHost, terms) {
       const text =
         sourceHost === targetHost
           ? canonical.toString("utf8")
-          : transformTextForHost(canonical.toString("utf8"), sourceHost, targetHost);
+          : normalizeSkillFileText(
+              transformTextForHost(canonical.toString("utf8"), sourceHost, targetHost),
+              raw,
+              absolute
+            );
       content = Buffer.from(maskLinesContaining(text, terms), "utf8");
     } else {
       content = canonical;
@@ -7659,7 +7671,14 @@ function overriddenTransformedSkillContentHash(path, sourceHost, targetHost, ove
     const absolute = join(path, raw);
     const masked = readSkillFileMaskedForHash(path, raw, sourceHost, overrides);
     const content = isTextMappingFile(absolute)
-      ? Buffer.from(transformTextForHost(masked.toString("utf8"), sourceHost, targetHost), "utf8")
+      ? Buffer.from(
+          normalizeSkillFileText(
+            transformTextForHost(masked.toString("utf8"), sourceHost, targetHost),
+            raw,
+            absolute
+          ),
+          "utf8"
+        )
       : masked;
     hash.update(normalized);
     hash.update(content);

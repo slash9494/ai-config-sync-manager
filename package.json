@@ -1,6 +1,6 @@
 {
   "name": "ai-config-sync-manager",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": false,
   "packageManager": "npm@11.9.0",
   "description": "OSS manager for syncing Claude and Codex developer configuration.",

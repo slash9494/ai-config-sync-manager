@@ -19,6 +19,13 @@
       "codex_marker": "ai-config-sync:team-call",
       "claude_template": "TeamCreate({{ARGS_JSON}})",
       "codex_template": "Use `multi_agent_v2.spawn_agent` to launch the \"{{team_name}}\" team. Each member runs in parallel.\n\n{{#each members}}### Member: {{name}} (agent_type: \"{{agent_type}}\", model: \"{{model}}\")\n{{prompt}}\n\n{{/each}}"
+    },
+    {
+      "id": "team-delete",
+      "claude_call": "TeamDelete",
+      "codex_marker": "ai-config-sync:team-delete-call",
+      "claude_template": "TeamDelete({{ARGS_JSON}})",
+      "codex_template": "Tear down the \"{{team_name}}\" team (idempotent — skip if already cleaned up)."
     }
   ],
   "unsupported": []

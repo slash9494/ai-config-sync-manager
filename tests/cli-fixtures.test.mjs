@@ -858,6 +858,121 @@ test("status treats skill as equivalent when transform and override jointly equa
   assert.equal(report.paraphraseOverrides.stale.length, 0);
 });
 
+test("status treats skill differing only by model alias as equivalent (no phantom conflict)", () => {
+  // Regression for the status equivalence path: transformedSkillContentHash must
+  // fold the transformed model token back to canonical (like skillContentHash),
+  // otherwise the forward (claude->codex) hash ends on a host-native value and
+  // surfaces a manual-risk phantom conflict even though copy/preview already
+  // report equivalence. Claude's "Opus" is a tier *term*, not the alias, so the
+  // alias-keyed normalizeModelAlias leaves it unfolded on read — only the
+  // post-transform normalize closes the gap.
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/skills/aliased"), { recursive: true });
+  mkdirSync(join(fixture.project, ".agents/skills/aliased"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".claude/skills/aliased/SKILL.md"),
+    "---\nname: aliased\nmodel: Opus\n---\n# Aliased\nShared body.\n"
+  );
+  writeFileSync(
+    join(fixture.project, ".agents/skills/aliased/SKILL.md"),
+    "---\nname: aliased\nmodel: gpt-5.5\n---\n# Aliased\nShared body.\n"
+  );
+
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "project", "--include", "skills:aliased", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
+test("status treats skill differing by model alias plus a term-masked line as equivalent", () => {
+  // Regression for #10 sibling path: maskedSkillContentHash transforms to the
+  // host-native model alias but never folds it back to canonical the way
+  // skillContentHash does. When a skill needs BOTH a term ignore rule (to mask a
+  // diverging prose line) AND the model fold, the masked hash ends on gpt-5.5 vs
+  // canonical opus and the skill surfaces as a phantom manual conflict.
+  const fixture = createFixture();
+  writeSkillManifest(
+    join(fixture.project, ".claude/skills/masked-alias"),
+    "claude",
+    [
+      "---",
+      "name: masked-alias",
+      "model: Opus",
+      "---",
+      "# X",
+      "refs .claude/docs/repo-analysis/ here",
+      "common line",
+      "",
+    ].join("\n")
+  );
+  writeSkillManifest(
+    join(fixture.project, ".agents/skills/masked-alias"),
+    "codex",
+    ["---", "name: masked-alias", "model: gpt-5.5", "---", "# X", "common line", ""].join("\n")
+  );
+  mkdirSync(join(fixture.project, ".ai-config-sync-manager"), { recursive: true });
+  writeJson(join(fixture.project, ".ai-config-sync-manager/status-ignore.json"), {
+    version: 1,
+    exclude: [{ area: "skills", term: ".claude/docs/repo-analysis/" }],
+  });
+
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "project", "--include", "skills:masked-alias", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
+test("status treats skill differing by model alias plus an override-masked line as equivalent", () => {
+  // Regression for #10 sibling path: overriddenTransformedSkillContentHash layers
+  // transformTextForHost over paraphrase masking but never folds the model token
+  // back to canonical. A skill needing BOTH a paraphrase override (to mask a
+  // diverging prose line) AND the model fold ends on gpt-5.5 vs canonical opus,
+  // surfacing as a phantom manual conflict even though the prose is overridden.
+  const fixture = createFixture();
+  const projectReal = realpathSync(fixture.project);
+  const claudeSkill = join(projectReal, ".claude/skills/override-alias");
+  const codexSkill = join(projectReal, ".agents/skills/override-alias");
+  mkdirSync(claudeSkill, { recursive: true });
+  mkdirSync(codexSkill, { recursive: true });
+  writeFileSync(
+    join(claudeSkill, "SKILL.md"),
+    "---\nname: override-alias\nmodel: Opus\n---\n# X\nRead the docs.\n"
+  );
+  writeFileSync(
+    join(codexSkill, "SKILL.md"),
+    "---\nname: override-alias\nmodel: gpt-5.5\n---\n# X\nInspect the docs.\n"
+  );
+  writeJson(join(fixture.home, ".ai-config-sync-manager/rules/paraphrase-overrides.json"), {
+    version: 1,
+    overrides: [
+      {
+        id: "override-alias-line6",
+        area: "skills",
+        claude_path: join(claudeSkill, "SKILL.md"),
+        codex_path: join(codexSkill, "SKILL.md"),
+        claude_line: 6,
+        codex_line: 6,
+        claude_text: "Read the docs.",
+        codex_text: "Inspect the docs.",
+      },
+    ],
+  });
+
+  const report = JSON.parse(
+    runCli(fixture, [
+      "status",
+      "--scope",
+      "project",
+      "--include",
+      "skills:override-alias",
+      "--json",
+    ])
+  );
+  assert.equal(report.entries.length, 0);
+  assert.equal(report.paraphraseOverrides.active.length, 1);
+  assert.equal(report.paraphraseOverrides.stale.length, 0);
+});
+
 test("status preview shows diff in references/* file when manifest is masked", () => {
   // Verifies skillDirChangePreview iterates beyond SKILL.md so a real diff in
   // references/foo.md becomes visible even when the manifest is fully masked
@@ -3475,6 +3590,30 @@ test("sync apply preserves precise settings.json / mcp.json / config.toml mappin
   assert.doesNotMatch(codexBody, /\.codex\/settings\.json/);
   assert.doesNotMatch(codexBody, /\.codex\/mcp\.json/);
   assert.doesNotMatch(codexBody, /\.claude\//);
+});
+
+test("sync apply preserves .claude/rules guidance paths instead of rewriting them to .codex/rules", () => {
+  const fixture = createFixture();
+  writeSkillManifest(
+    join(fixture.project, ".claude/skills/rules-carveout"),
+    "claude",
+    [
+      "# Rules Carveout",
+      "Path scoped rules live under `.claude/rules/go.md`.",
+      "Non-segment match `.claude/rulesfoo/bar.md` is still swapped.",
+      "",
+    ].join("\n")
+  );
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "skills:rules-carveout", "--apply"]);
+  const codexBody = readFileSync(
+    join(fixture.project, ".agents/skills/rules-carveout/SKILL.md"),
+    "utf8"
+  );
+
+  assert.match(codexBody, /\.claude\/rules\/go\.md/);
+  assert.doesNotMatch(codexBody, /\.codex\/rules\/go\.md/);
+  assert.match(codexBody, /\.codex\/rulesfoo\/bar\.md/);
 });
 
 test("sync apply rewrites prose mentions of TeamCreate to multiple spawn_agent invocations on Codex side", () => {
