@@ -14,7 +14,7 @@ import {
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { serializeYamlScalar } from "./util/yaml-scalar.mjs";
@@ -26,6 +26,7 @@ const runtimeRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const home = process.env.AI_CONFIG_SYNC_HOME ?? homedir();
 const STATE_SCHEMA_VERSION = 1;
 const BACKUP_RETENTION = 30;
+const LEDGER_RETENTION = 300;
 const STATUS_DETAILS_RETENTION = 100;
 const CODEX_PLUGIN_NAME = "ai-config-sync-manager";
 const CODEX_MARKETPLACE_NAME = "local-plugins";
@@ -3851,10 +3852,14 @@ function buildLedger(plan) {
 }
 
 function emitLedger(plans, options) {
-  if (!options.ledgerJson && !options.ledgerPath) return;
+  if (plans.length === 0) return;
   const ledgers = plans.map((plan) => buildLedger(plan));
   const output = ledgers.length === 1 ? ledgers[0] : { ledgers };
   const serialized = `${JSON.stringify(output, null, 2)}\n`;
+  const ledgerDir = `${home}/.ai-config-sync-manager/ledgers`;
+  pruneRetention(ledgerDir, LEDGER_RETENTION - 1);
+  mkdirSync(ledgerDir, { recursive: true });
+  writeFileSync(join(ledgerDir, `${basename(plans[0].backupRoot)}.json`), serialized);
   if (options.ledgerPath) {
     const resolved = resolve(expandHome(options.ledgerPath));
     mkdirSync(dirname(resolved), { recursive: true });

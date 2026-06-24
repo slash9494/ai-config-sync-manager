@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -214,4 +223,45 @@ test("sync apply ledger marks writes_started and records an error item on a forc
     chmodSync(mcpTarget, 0o644);
     rmSync(fixture.root, { recursive: true, force: true });
   }
+});
+
+function writeSkill(fixture, name) {
+  mkdirSync(join(fixture.project, `.claude/skills/${name}`), { recursive: true });
+  writeFileSync(
+    join(fixture.project, `.claude/skills/${name}/SKILL.md`),
+    `---\nname: ${name}\n---\n# Review\n\nBody.\n`
+  );
+}
+
+test("sync apply writes the default-on ledger file named after the backup timestamp", () => {
+  const fixture = createFixture();
+  writeSkill(fixture, "review");
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "skills:review", "--apply"]);
+
+  const ledgerDir = join(fixture.home, ".ai-config-sync-manager/ledgers");
+  const ledgerFiles = readdirSync(ledgerDir);
+  assert.equal(ledgerFiles.length, 1);
+
+  const timestamp = ledgerFiles[0].replace(/\.json$/, "");
+  const backupDirs = readdirSync(join(fixture.home, ".ai-config-sync-manager/backups"));
+  assert.ok(backupDirs.includes(timestamp));
+
+  const ledger = JSON.parse(readFileSync(join(ledgerDir, ledgerFiles[0]), "utf8"));
+  assert.equal(ledger.mode, "apply");
+  assert.match(ledger.plan_hash, SHA256);
+  const item = ledger.items.find((entry) => entry.item === "review");
+  assert.ok(item, "expected a review ledger entry");
+  assert.equal(item.status, "applied");
+  assert.match(item.after_hash, SHA256);
+});
+
+test("sync dry-run does not write the default-on ledger file", () => {
+  const fixture = createFixture();
+  writeSkill(fixture, "review");
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "skills:review"]);
+
+  const ledgerDir = join(fixture.home, ".ai-config-sync-manager/ledgers");
+  assert.equal(existsSync(ledgerDir) && readdirSync(ledgerDir).length > 0, false);
 });
