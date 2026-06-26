@@ -144,6 +144,25 @@ test("sync apply ledger records a merged agent file per item", () => {
   assert.match(item.after_hash, SHA256);
 });
 
+test("apply ledger records vocab-fix rewrites", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });
+  // exec_command is a Codex-only token; in a Claude file it is auto-rewritten to Bash and logged as a vocab-fix.
+  writeFileSync(
+    join(fixture.project, ".claude/agents/helper.md"),
+    "---\nname: helper\ndescription: helps\n---\nUse exec_command to run shell commands.\n"
+  );
+
+  const ledger = applyWithLedgerJson(fixture, "agents:helper");
+  const item = ledger.items.find((entry) => entry.area === "vocab");
+
+  assert.ok(item, "expected a vocab ledger entry");
+  assert.equal(item.action, "vocab-fix");
+  assert.equal(item.status, "applied");
+  assert.ok(item.after_hash);
+  assert.match(item.after_hash, SHA256);
+});
+
 test("sync apply ledger records merged permission items", () => {
   const fixture = createFixture();
   mkdirSync(join(fixture.project, ".codex"), { recursive: true });

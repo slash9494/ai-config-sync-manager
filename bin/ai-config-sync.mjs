@@ -3804,11 +3804,21 @@ function applyVocabFixes(plan) {
     const nativeHost = info.fileHost === "claude" ? "codex" : "claude";
     const updated = applyTermMappings(original, nativeHost, info.fileHost);
     if (updated === original) continue;
+    const beforeHash = hashPath(path);
+    const backupPathTaken = backupTargetPath(plan, path);
     backupPath(plan, path);
     writeFileSync(path, updated);
-    plan.results.push({
+    const message = `vocab-fix: rewrote ${info.items.length} token(s) in ${path}`;
+    plan.results.push({ status: "applied", message });
+    recordLedger(plan, {
+      area: "vocab",
+      item: path,
+      action: "vocab-fix",
       status: "applied",
-      message: `vocab-fix: rewrote ${info.items.length} token(s) in ${path}`,
+      target: path,
+      beforeHash,
+      backupPath: backupPathTaken,
+      message,
     });
   }
 }
