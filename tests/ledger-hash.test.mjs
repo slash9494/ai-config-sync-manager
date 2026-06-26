@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -59,6 +59,22 @@ test("hashTree encodes relpath and per-file sha as sorted nul-delimited lines", 
 
   const expectedLines = `a.txt\0${sha256Hex("A")}\n` + `z.txt\0${sha256Hex("Z")}\n`;
   assert.equal(hashTree(dir), `sha256:${sha256Hex(expectedLines)}`);
+
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("hashTree skips symlinks and does not recurse into symlink cycles", () => {
+  const dir = tempDir();
+  writeFileSync(join(dir, "a.txt"), "alpha");
+  mkdirSync(join(dir, "nested"));
+  writeFileSync(join(dir, "nested", "b.txt"), "beta");
+
+  const baseline = hashTree(dir);
+
+  // A symlink pointing back at the root would make a naive walk recurse forever.
+  symlinkSync(dir, join(dir, "nested", "loop"));
+
+  assert.equal(hashTree(dir), baseline);
 
   rmSync(dir, { recursive: true, force: true });
 });

@@ -1,7 +1,7 @@
 // Apply-ledger hashing. Deliberately distinct from skillContentHash: the ledger attests exact on-disk bytes, so it uses full sha256 with no manifest-casing normalization and no truncation.
 
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 export function hashBytes(buffer) {
@@ -41,7 +41,10 @@ function collectTreeFiles(root) {
 function walk(root, dir, files) {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
+    // Skip symlinks: prevents infinite recursion on cyclic links, and the ledger attests real on-disk bytes only.
+    const st = lstatSync(full);
+    if (st.isSymbolicLink()) continue;
+    if (st.isDirectory()) {
       walk(root, full, files);
     } else {
       files.push(relative(root, full));
