@@ -54,7 +54,164 @@
       },
       "schema_desc_hash": "e84e31a3dbdf",
       "recheck_after": "2026-11-22"
+    },
+    "orchestrator": {
+      "reason": "Codex-internal orchestrator feature settings; nearest Claude concepts (teammateMode, agent-teams env flags) are UI/experimental toggles with different semantics.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "b353f165db70",
+      "recheck_after": "2027-01-02"
     }
   },
-  "codex_nested": {}
+  "codex_nested": {
+    "AppsDefaultConfig.default_tools_approval_mode": {
+      "reason": "Codex Apps host-only tool approval default; Claude permission mapping has no Apps scope. Same family as apps_mcp_product_sku.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "b748ea36aa10",
+      "recheck_after": "2027-01-02"
+    },
+    "CodeModeConfigToml.direct_only_tool_namespaces": {
+      "reason": "Codex code-mode tool surface control; Claude has no code-mode concept.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "019e10488254",
+      "recheck_after": "2027-01-02"
+    },
+    "CurrentTimeReminderConfigToml.clock_source": {
+      "reason": "Codex-internal current-time reminder injection; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "CurrentTimeReminderConfigToml.enabled": {
+      "reason": "Codex-internal current-time reminder injection; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "CurrentTimeReminderConfigToml.reminder_interval_model_requests": {
+      "reason": "Codex-internal current-time reminder injection; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "OrchestratorFeatureToml.enabled": {
+      "reason": "Codex-internal orchestrator feature toggle; see codex_top_level.orchestrator.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "RolloutBudgetConfigToml.enabled": {
+      "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "RolloutBudgetConfigToml.limit_tokens": {
+      "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "RolloutBudgetConfigToml.prefill_token_weight": {
+      "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "RolloutBudgetConfigToml.reminder_at_remaining_tokens": {
+      "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "d2c8c2449974",
+      "recheck_after": "2027-01-02"
+    },
+    "RolloutBudgetConfigToml.sampling_token_weight": {
+      "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "TokenBudgetConfigToml.enabled": {
+      "reason": "Codex pre-auto-compaction reminder; nearest Claude controls are env vars (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_CODE_AUTO_COMPACT_WINDOW) which are not sync targets.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "TokenBudgetConfigToml.reminder_message_template": {
+      "reason": "Codex pre-auto-compaction reminder; nearest Claude controls are env vars (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_CODE_AUTO_COMPACT_WINDOW) which are not sync targets.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "6102997b7fa5",
+      "recheck_after": "2027-01-02"
+    },
+    "TokenBudgetConfigToml.reminder_threshold_tokens": {
+      "reason": "Codex pre-auto-compaction reminder; nearest Claude controls are env vars (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_CODE_AUTO_COMPACT_WINDOW) which are not sync targets.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "1b8616062e5e",
+      "recheck_after": "2027-01-02"
+    }
+  }
 }

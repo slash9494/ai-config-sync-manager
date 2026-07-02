@@ -50,11 +50,14 @@ test("upstream-known-unsupported.json entries declare required fields with corre
       assert.equal(typeof entry.decided_in, "string", `${where}.decided_in must be a string`);
       assert.match(entry.decided_at, ISO_DATE, `${where}.decided_at must be YYYY-MM-DD`);
       assert.match(entry.recheck_after, ISO_DATE, `${where}.recheck_after must be YYYY-MM-DD`);
-      assert.match(
-        entry.schema_desc_hash,
-        SHORT_SHA256,
-        `${where}.schema_desc_hash must be 12 hex chars`
-      );
+      // schema_desc_hash is omitted for fields whose schema carries no description (the scan skips empty-desc entries).
+      if ("schema_desc_hash" in entry) {
+        assert.match(
+          entry.schema_desc_hash,
+          SHORT_SHA256,
+          `${where}.schema_desc_hash must be 12 hex chars`
+        );
+      }
       assert.equal(typeof entry.direction, "object", `${where}.direction must be an object`);
       for (const dir of DIRECTIONS) {
         assert.ok(dir in entry.direction, `${where}.direction.${dir} missing`);
