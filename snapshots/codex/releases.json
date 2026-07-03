@@ -1,27 +1,27 @@
 [
   {
-    "body": "Release 0.143.0-alpha.25\n\n",
-    "published_at": "2026-06-25T21:55:43Z",
-    "tag_name": "rust-v0.143.0-alpha.25"
+    "body": "Release 0.143.0-alpha.35\n\n",
+    "published_at": "2026-07-03T02:33:31Z",
+    "tag_name": "rust-v0.143.0-alpha.35"
   },
   {
-    "body": "Release 0.143.0-alpha.22\n\n",
-    "published_at": "2026-06-25T18:08:44Z",
-    "tag_name": "rust-v0.143.0-alpha.22"
+    "body": "Release 0.143.0-alpha.34\n\n",
+    "published_at": "2026-07-02T21:42:01Z",
+    "tag_name": "rust-v0.143.0-alpha.34"
   },
   {
-    "body": "## New Features\n\n- MCP tools now use tool search by default when supported, improving tool discovery while preserving compatibility with older models and providers. (#29486)\n- macOS authentication clients can honor system proxy, PAC, and WPAD settings when `respect_system_proxy` is enabled. (#26709)\n- Plugins can provide dedicated dark-mode logos through local manifests and remote catalogs. (#29488)\n- Apps can display richer safety-buffering UI using server-provided visibility and faster-model metadata. (#29473)\n\n## Bug Fixes\n\n- Remote plugin catalogs now return curated featured-plugin rankings. (#29485)\n- Expired Amazon Bedrock credentials now produce actionable recovery guidance instead of a generic authorization error. (#28992)\n- Remote stdio MCP servers now accept absolute working directories written in the remote platform’s path format. (#29493)\n- Remote HTTP(S) image inputs now return clear model-visible validation errors; inline data URLs and local images remain supported. (#29417, #29419)\n- PowerShell commands containing executable AST regions the safety classifier cannot inspect now require approval. (#24092)\n- Code Mode now warns when the selected model lacks the required metadata. (#29490)\n\n## Chores\n\n- Updated bundled OpenSSL and esbuild dependencies to patched releases. (#29487, #29489)\n- Successful formatter runs are now quiet while failures still show diagnostics. (#29467)\n\n## Changelog\n\nFull Changelog: https://github.com/openai/codex/compare/rust-v0.142.1...rust-v0.142.2\n\n- #28769 Register full CDP requirements feature @syuan-oai\n- #29485 [codex] fetch featured IDs for remote plugins @ericning-o\n- #29487 Upgrade bundled OpenSSL to 3.6.3 @jif-oai\n- #29489 [codex] Update esbuild to 0.28.1 @pakrym-oai\n- #29488 [plugins] Add dark-mode logo metadata @drewschuster-openai\n- #29249 [codex] migrate environment context to model world state @pakrym-oai\n- #29494 core: wrap token budget window context @bolinfest\n- #29417 [codex] replace remote images with model-visible error text @rka-oai\n- #28360 feat(core): store turn_id on ResponseItem metadata @owenlin0\n- #29486 [codex] Use tool search for MCP tools by default @sayan-oai\n- #29501 path-uri: clarify host-native path conversion @anp-oai\n- #29504 fix: world state response item test @celia-oai\n- #26704 TUI Plugin Sharing 4 - cover remote plugin catalog flows @canvrno-oai\n- #29419 [codex] reject remote images at app-server ingress @rka-oai\n- #28992 chore: improve expired Bedrock credential errors @celia-oai\n- #29467 Make formatter output quiet on success @anp-oai\n- #26709 PAC 4 - Add macOS system proxy resolver @canvrno-oai\n- #29490 chore: warn when Code Mode lacks model metadata @celia-oai\n- #29493 mcp: accept foreign absolute cwd for remote stdio @anp-oai\n- #29473 Propagate safety buffering treatment metadata @fc-oai\n- #24092 [codex] Reject unlowered PowerShell AST regions @bookholt-oai\n\n\n",
-    "published_at": "2026-06-25T07:32:07Z",
-    "tag_name": "rust-v0.142.2"
+    "body": "Release 0.143.0-alpha.33\n\n",
+    "published_at": "2026-07-02T01:58:50Z",
+    "tag_name": "rust-v0.143.0-alpha.33"
   },
   {
-    "body": "Release 0.143.0-alpha.21\n\n",
-    "published_at": "2026-06-25T04:40:38Z",
-    "tag_name": "rust-v0.143.0-alpha.21"
+    "body": "Release 0.143.0-alpha.32\n\n",
+    "published_at": "2026-07-01T03:47:46Z",
+    "tag_name": "rust-v0.143.0-alpha.32"
   },
   {
-    "body": "Release 0.143.0-alpha.16\n\n",
-    "published_at": "2026-06-25T03:41:22Z",
-    "tag_name": "rust-v0.143.0-alpha.16"
+    "body": "## Bug Fixes\n\n- Prevented full Responses WebSocket request payloads from being written to trace logs. (#30771)\n\n## Changelog\n\nFull Changelog: https://github.com/openai/codex/compare/rust-v0.142.4...rust-v0.142.5\n\n- #30771 [codex] Backport websocket trace fix to release/0.142 @dylan-hurd-oai\n\n\n",
+    "published_at": "2026-07-01T01:15:44Z",
+    "tag_name": "rust-v0.142.5"
   }
 ]
