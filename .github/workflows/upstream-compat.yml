@@ -307,6 +307,16 @@ jobs:
                   current=$(hash_desc "$desc")
                   [ "$current" != "$recorded" ] && printf -- "- %s (%s → %s)\n" "$key" "$recorded" "$current"
                 done
+            # nested keys are "<Type>.<field>"; description lives under definitions.<Type>.properties.<field>.
+            jq -r ".${side}_nested // {} | to_entries[] | \"\(.key)\t\(.value.schema_desc_hash // \"\")\"" "$ALLOWLIST" \
+              | while IFS=$'\t' read -r key recorded; do
+                  [ -z "${key:-}" ] && continue
+                  type="${key%%.*}"; field="${key#*.}"
+                  desc=$(jq -r ".definitions.\"$type\".properties.\"$field\".description // \"\"" "$file" 2>/dev/null)
+                  [ -z "$desc" ] && continue
+                  current=$(hash_desc "$desc")
+                  [ "$current" != "$recorded" ] && printf -- "- %s (%s → %s)\n" "$key" "$recorded" "$current"
+                done
           }
           claude_hash_drift=$(hash_drift_section claude snapshots/claude/settings-schema.json || true)
           codex_hash_drift=$(hash_drift_section codex snapshots/codex/config-schema.json || true)
@@ -331,7 +341,7 @@ jobs:
           recheck_due_section() {
             local side="$1"
             [ -f "$ALLOWLIST" ] || return 0
-            jq -r --arg today "$today" ".${side}_top_level // {} | to_entries[] | select((.value.recheck_after // \"9999-12-31\") <= \$today) | \"- \(.key) (decided \(.value.decided_at // \"?\"), due \(.value.recheck_after // \"?\"))\"" "$ALLOWLIST" 2>/dev/null
+            jq -r --arg today "$today" "((.${side}_top_level // {}) + (.${side}_nested // {})) | to_entries[] | select((.value.recheck_after // \"9999-12-31\") <= \$today) | \"- \(.key) (decided \(.value.decided_at // \"?\"), due \(.value.recheck_after // \"?\"))\"" "$ALLOWLIST" 2>/dev/null
           }
           claude_recheck=$(recheck_due_section claude || true)
           codex_recheck=$(recheck_due_section codex || true)
@@ -456,9 +466,19 @@ jobs:
           EOF
           )
           claude -p "$PROMPT" --allowedTools "Read,Grep,Glob" > .upstream-compat/llm-review.md
+          MARKER='<!-- llm-compat-review -->'
           {
+            echo "$MARKER"
             echo "> LLM-generated Layer 2/4 review — human approval still required."
             echo
             cat .upstream-compat/llm-review.md
           } > .upstream-compat/llm-comment.md
-          gh pr comment "${{ steps.create-pr.outputs.pull-request-number }}" --body-file .upstream-compat/llm-comment.md
+          PR="${{ steps.create-pr.outputs.pull-request-number }}"
+          # Reuse this run's own comment across weekly cron re-runs while the drift PR stays open, instead of stacking a new one each time.
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq "map(select(.body | contains(\"$MARKER\"))) | .[0].id // empty")
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@.upstream-compat/llm-comment.md >/dev/null
+          else
+            gh pr comment "$PR" --body-file .upstream-compat/llm-comment.md
+          fi
