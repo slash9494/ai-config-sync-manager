@@ -130,6 +130,26 @@
       },
       "recheck_after": "2027-01-02"
     },
+    "OrchestratorToml.mcp": {
+      "reason": "Codex orchestrator-subsystem feature toggle (bare $ref to OrchestratorFeatureToml {enabled}); unrelated to Claude mcpServers/skills content configs. See codex_top_level.orchestrator.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
+    "OrchestratorToml.skills": {
+      "reason": "Codex orchestrator-subsystem feature toggle (bare $ref to OrchestratorFeatureToml {enabled}); unrelated to Claude mcpServers/skills content configs. See codex_top_level.orchestrator.",
+      "decided_in": "#24",
+      "decided_at": "2026-07-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-02"
+    },
     "RolloutBudgetConfigToml.enabled": {
       "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
       "decided_in": "#24",

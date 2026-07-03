@@ -50,8 +50,8 @@ test("upstream-known-unsupported.json entries declare required fields with corre
       assert.equal(typeof entry.decided_in, "string", `${where}.decided_in must be a string`);
       assert.match(entry.decided_at, ISO_DATE, `${where}.decided_at must be YYYY-MM-DD`);
       assert.match(entry.recheck_after, ISO_DATE, `${where}.recheck_after must be YYYY-MM-DD`);
-      // schema_desc_hash is omitted for fields whose schema carries no description (the scan skips empty-desc entries).
-      if ("schema_desc_hash" in entry) {
+      // top_level entries must carry a hash (hash_drift_section consumes only top_level; a missing hash emits phantom drift every run). nested fields whose schema is a bare $ref / has no description omit it, matching the scan's empty-desc skip.
+      if (scope.endsWith("_top_level") || "schema_desc_hash" in entry) {
         assert.match(
           entry.schema_desc_hash,
           SHORT_SHA256,
