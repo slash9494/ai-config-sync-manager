@@ -430,7 +430,6 @@ jobs:
           fi
 
       - name: Open drift PR
-        id: create-pr
         if: steps.drift.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
@@ -442,43 +441,3 @@ jobs:
           commit-message: "chore(snapshots): refresh upstream snapshots"
           labels: compatibility
           add-paths: snapshots
-
-      - name: LLM compat review (Layer 2/4)
-        # secrets context is unavailable in step if; gate on env instead so the step no-ops when the key is unset.
-        if: steps.create-pr.outputs.pull-request-number != '' && env.ANTHROPIC_API_KEY != ''
-        continue-on-error: true
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          set -euo pipefail
-          npm install -g @anthropic-ai/claude-code
-          mkdir -p .upstream-compat
-          PROMPT=$(cat <<'EOF'
-          You are reviewing an automated upstream compatibility drift PR for AI Config Sync Manager (a Claude/Codex config sync CLI). Work read-only.
-
-          Layer 2 — coverage mapping:
-          Read the "Compat scan" section of .upstream-compat/body.md and collect every uncovered upstream key it lists. For each key, read its description from snapshots/codex/config-schema.json and snapshots/claude/settings-schema.json, then search the opposite host's schema and the rules/*.json files for an equivalent concept. Emit a verdict table with columns: key | opposite-host concept | verdict (map / drop) | target (which rules file + mapping, or "register in rules/upstream-known-unsupported.json").
-
-          Layer 4 — manual review checklist:
-          Judge each item in the PR's Manual review checklist (Layer 4) against the snapshot diff, marking each pass / fail / needs-human with a one-line reason.
-
-          Output GitHub-comment markdown only. No preamble.
-          EOF
-          )
-          claude -p "$PROMPT" --allowedTools "Read,Grep,Glob" > .upstream-compat/llm-review.md
-          MARKER='<!-- llm-compat-review -->'
-          {
-            echo "$MARKER"
-            echo "> LLM-generated Layer 2/4 review — human approval still required."
-            echo
-            cat .upstream-compat/llm-review.md
-          } > .upstream-compat/llm-comment.md
-          PR="${{ steps.create-pr.outputs.pull-request-number }}"
-          # Reuse this run's own comment across weekly cron re-runs while the drift PR stays open, instead of stacking a new one each time.
-          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
-            --jq "map(select(.body | contains(\"$MARKER\"))) | .[0].id // empty")
-          if [ -n "$existing" ]; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@.upstream-compat/llm-comment.md >/dev/null
-          else
-            gh pr comment "$PR" --body-file .upstream-compat/llm-comment.md
-          fi
