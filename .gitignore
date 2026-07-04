@@ -54,6 +54,8 @@ _workspace/
 !tests/integration/fixtures/**/.claude/
 !tests/integration/fixtures/**/.codex/
 !tests/integration/fixtures/**/.agents/
+!tests/upstream-compat/**/.claude/
+!tests/upstream-compat/**/.codex/
 !tests/integration/manual-codex-to-claude/**/.claude/
 !tests/integration/manual-codex-to-claude/**/.codex/
 !tests/integration/manual-codex-to-claude/**/.agents/

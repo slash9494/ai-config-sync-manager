@@ -1,0 +1,16 @@
+sandbox_mode = "workspace-write"
+web_search = "live"
+
+[mcp_servers.notion]
+command = "npx"
+args = ["-y", "@notionhq/notion-mcp-server"]
+
+[features]
+hooks = true
+
+[[hooks.PreToolUse]]
+matcher = "Bash"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "echo Pre"

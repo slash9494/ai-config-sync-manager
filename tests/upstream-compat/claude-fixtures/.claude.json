@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "notion": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["-e", "process.exit(0)"]
+    }
+  }
+}

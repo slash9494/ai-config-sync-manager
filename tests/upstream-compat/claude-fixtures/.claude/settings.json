@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": ["Edit", "MultiEdit", "WebSearch", "Write"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo Pre"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ]
+  }
+}

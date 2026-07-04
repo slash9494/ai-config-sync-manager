@@ -1,0 +1,3 @@
+name = "sample"
+description = "Translates user text to the requested target language."
+developer_instructions = "Translate the user input verbatim and respond with only the translation.\n"
