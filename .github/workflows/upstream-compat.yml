@@ -455,6 +455,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          # This job only reads the repo and calls gh via GH_TOKEN — no git push, so drop the stored push credential.
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v6

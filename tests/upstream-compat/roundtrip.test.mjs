@@ -20,7 +20,9 @@ const CODEX_JUDGE_TIMEOUT_MS = 12000;
 
 function binaryAvailable(name) {
   try {
-    execFileSync(name, ["--version"], { stdio: "ignore" });
+    // Bound the probe: a hung --version (update/telemetry check) would otherwise
+    // stall module load until the CI job timeout with no diagnostic.
+    execFileSync(name, ["--version"], { stdio: "ignore", timeout: 10000, killSignal: "SIGKILL" });
     return true;
   } catch {
     return false;
