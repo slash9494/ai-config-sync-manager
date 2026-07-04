@@ -441,3 +441,64 @@ jobs:
           commit-message: "chore(snapshots): refresh upstream snapshots"
           labels: compatibility
           add-paths: snapshots
+
+  roundtrip:
+    name: Layer 3 host behavior roundtrip
+    runs-on: ubuntu-latest
+    # Independent of snapshot — behavior can drift with no schema diff, so this must run even when snapshot is green.
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Claude Code and Codex CLIs
+        run: npm install -g @anthropic-ai/claude-code @openai/codex
+
+      - name: Run roundtrip compatibility test
+        id: roundtrip
+        run: |
+          set -o pipefail
+          mkdir -p .upstream-compat
+          node --test tests/upstream-compat/roundtrip.test.mjs 2>&1 | tee .upstream-compat/roundtrip.log
+
+      # Scoped to the test's own outcome so infra failures (npm ci, global install) don't file a "host drift" issue.
+      - name: Report host behavior drift
+        if: failure() && steps.roundtrip.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          TITLE="Upstream host behavior drift detected (roundtrip failure)"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          {
+            echo "Layer 3 roundtrip compatibility test failed — a host CLI (Claude/Codex) behavior may have drifted without any schema diff."
+            echo
+            echo "Run: ${RUN_URL}"
+            echo
+            echo "Layer 3 — see .claude/docs/upstream-compat-plan.md"
+            echo
+            echo "## Test output (tail)"
+            echo
+            echo '```'
+            tail -c 4000 .upstream-compat/roundtrip.log 2>/dev/null || echo "(no test output captured)"
+            echo '```'
+          } > .upstream-compat/report.md
+          existing=$(gh issue list --state open --search "$TITLE in:title" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file .upstream-compat/report.md
+          else
+            gh issue create --title "$TITLE" --label compatibility --body-file .upstream-compat/report.md
+          fi
