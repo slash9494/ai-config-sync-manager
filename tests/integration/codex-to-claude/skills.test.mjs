@@ -152,7 +152,9 @@ test("manual-overwrite replaces existing claude skill body and backs up", () => 
     assert.equal(existsSync(backupRootDir), true, `backup root missing: ${backupRootDir}`);
 
     const backupFiles = walkFiles(backupRootDir);
-    const backedUpSkill = backupFiles.find((p) => /\/\.claude\/skills\/hello\/skill\.md$/i.test(p));
+    const backedUpSkill = backupFiles.find((p) =>
+      /\/\.claude\/skills\/hello\/skill\.md$/i.test(p.replaceAll("\\", "/"))
+    );
     assert.ok(backedUpSkill, `expected backup of hello SKILL.md, got: ${backupFiles.join(", ")}`);
     assert.equal(
       readFileSync(backedUpSkill, "utf8"),

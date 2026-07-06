@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -105,7 +105,27 @@ test("sync apply ledger records before-hash and backup_path when overwriting an 
   assert.match(item.before_hash, SHA256);
   assert.match(item.after_hash, SHA256);
   assert.notEqual(item.before_hash, item.after_hash);
-  assert.ok(item.backup_path && item.backup_path.startsWith("/"));
+  assert.ok(item.backup_path && isAbsolute(item.backup_path));
+  assert.equal(existsSync(item.backup_path), true, `backup path missing: ${item.backup_path}`);
+});
+
+test("sync apply backs up project instructions when the project path is absolute", () => {
+  const fixture = createFixture();
+  writeFileSync(join(fixture.project, "CLAUDE.md"), "Claude instructions\n");
+  writeFileSync(join(fixture.project, "AGENTS.md"), "Codex instructions\n");
+
+  const ledger = applyWithLedgerJson(fixture, "instructions");
+  const item = ledger.items.find((entry) => entry.area === "instructions");
+
+  assert.ok(item, "expected an instructions ledger entry");
+  assert.equal(item.action, "write-instructions");
+  assert.equal(item.status, "applied");
+  assert.match(item.before_hash, SHA256);
+  assert.match(item.after_hash, SHA256);
+  assert.equal(ledger.summary.error, 0);
+  assert.equal(ledger.summary.applied, 1);
+  assert.equal(existsSync(item.backup_path), true, `backup path missing: ${item.backup_path}`);
+  assert.equal(readFileSync(join(fixture.project, "AGENTS.md"), "utf8"), "Claude instructions\n");
 });
 
 test("sync apply ledger hashes a copied skill directory as a tree hash", () => {

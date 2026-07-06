@@ -193,7 +193,9 @@ test("pre-existing CLAUDE.md is backed up before overwrite", () => {
     assert.equal(existsSync(backupRootDir), true, `backup root missing: ${backupRootDir}`);
 
     const backupFiles = walkFiles(backupRootDir);
-    const claudeBackups = backupFiles.filter((p) => p.endsWith(`${"/.claude/"}CLAUDE.md`));
+    const claudeBackups = backupFiles.filter((p) =>
+      p.replaceAll("\\", "/").endsWith("/.claude/CLAUDE.md")
+    );
     assert.ok(
       claudeBackups.length > 0,
       `expected a backup of CLAUDE.md under ${backupRootDir}, got: ${backupFiles.join(", ")}`

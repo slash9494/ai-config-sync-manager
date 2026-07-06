@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, parse, relative, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +27,17 @@ function createFixture() {
   mkdirSync(home, { recursive: true });
   mkdirSync(project, { recursive: true });
   return { root, home, project };
+}
+
+function expectedBackupPath(backup, targetPath) {
+  const absolute = resolve(targetPath);
+  const parsed = parse(absolute);
+  const relativePath = relative(parsed.root, absolute);
+  const rootLabel =
+    parsed.root === "/" || parsed.root === ""
+      ? ""
+      : parsed.root.replace(/[:\\/]+/g, "-").replace(/^-+|-+$/g, "") || "root";
+  return rootLabel ? join(backup, rootLabel, relativePath) : join(backup, relativePath);
 }
 
 function runCli(fixture, args, input, extraEnv = {}) {
@@ -1439,7 +1450,12 @@ test("sync apply maps Bash permissions, MCP tool approvals, and creates backups"
   assert.doesNotMatch(config, /# permissions\.allow/);
   assert.match(rules, /prefix_rule\(pattern=\["npm","run","check"\], decision="allow"/);
   assert.ok(
-    existsSync(join(backupRoot(output), realpathSync(fixture.project), ".codex/config.toml"))
+    existsSync(
+      expectedBackupPath(
+        backupRoot(output),
+        join(realpathSync(fixture.project), ".codex/config.toml")
+      )
+    )
   );
 });
 
@@ -1940,13 +1956,11 @@ test("default sync deletes Claude skill not present in Codex (codex->claude dire
 
   const backup = backupRoot(output);
   assert.ok(existsSync(backup), "backup root directory should exist");
-  // process.cwd() resolves symlinks (e.g. /var -> /private/var on macOS),
-  // and backupPath() strips the leading "/" then joins under backupRoot.
-  // Reconstruct the same path off the resolved project root.
+  // process.cwd() resolves symlinks (e.g. /var -> /private/var on macOS).
   const projectRoot = realpathSync(fixture.project);
-  const backupPath = join(
+  const backupPath = expectedBackupPath(
     backup,
-    join(projectRoot, ".claude/skills/orphan/SKILL.md").replace(/^\/+/, "")
+    join(projectRoot, ".claude/skills/orphan/SKILL.md")
   );
   assert.ok(
     existsSync(backupPath),
@@ -1977,12 +1991,8 @@ test("default sync deletes Claude agent not present in Codex (codex->claude dire
   assert.match(output, /deleted agents item\(s\) from claude: orphan/);
 
   const backup = backupRoot(output);
-  // backupPath() mirrors the resolved cwd-rooted absolute path under backupRoot.
   const projectRoot = realpathSync(fixture.project);
-  const backupAgentPath = join(
-    backup,
-    join(projectRoot, ".claude/agents/orphan.md").replace(/^\/+/, "")
-  );
+  const backupAgentPath = expectedBackupPath(backup, join(projectRoot, ".claude/agents/orphan.md"));
   assert.ok(
     existsSync(backupAgentPath),
     `backup should contain the deleted agent file at ${backupAgentPath}`

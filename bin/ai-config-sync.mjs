@@ -14,7 +14,7 @@ import {
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, parse, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { serializeYamlScalar } from "./util/yaml-scalar.mjs";
@@ -5907,13 +5907,28 @@ function escapeRegExp(value) {
 function backupPath(plan, targetPath) {
   if (!existsSync(targetPath)) return;
 
-  const backupTarget = join(plan.backupRoot, targetPath.replace(/^\/+/, ""));
+  const backupTarget = backupTargetFor(plan, targetPath);
   mkdirSync(dirname(backupTarget), { recursive: true });
   cpSync(targetPath, backupTarget, { recursive: true, dereference: false });
 }
 
 function backupTargetPath(plan, targetPath) {
-  return existsSync(targetPath) ? join(plan.backupRoot, targetPath.replace(/^\/+/, "")) : null;
+  return existsSync(targetPath) ? backupTargetFor(plan, targetPath) : null;
+}
+
+function backupTargetFor(plan, targetPath) {
+  const absolute = resolve(targetPath);
+  const parsed = parse(absolute);
+  const relativePath = relative(parsed.root, absolute);
+  const rootLabel = backupRootLabel(parsed.root);
+  return rootLabel
+    ? join(plan.backupRoot, rootLabel, relativePath)
+    : join(plan.backupRoot, relativePath);
+}
+
+function backupRootLabel(root) {
+  if (root === "/" || root === "") return "";
+  return root.replace(/[:\\/]+/g, "-").replace(/^-+|-+$/g, "") || "root";
 }
 
 function recordLedger(plan, entry) {
