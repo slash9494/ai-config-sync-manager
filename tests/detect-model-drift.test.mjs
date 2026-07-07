@@ -46,12 +46,8 @@ test("stale tier surfaces when Opus bumps past the recorded version", () => {
   assert.match(drift[0].note, /갱신/);
 });
 
-test("a brand-new family with no tier is marked as a new tier candidate", () => {
-  const prose = "Meet Claude Fable 5, a creative-writing model.";
-  const drift = findModelDrift(prose, TIERS);
-  assert.equal(drift.length, 1);
-  assert.equal(drift[0].tierId, null);
-  assert.match(drift[0].note, /새 tier/);
+test("Fable is intentionally excluded from detection", () => {
+  assert.deepEqual(findModelDrift("Meet Claude Fable 5, a creative-writing model.", TIERS), []);
 });
 
 test("hyphenated model ids are extracted", () => {
