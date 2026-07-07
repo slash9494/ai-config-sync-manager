@@ -428,6 +428,8 @@ jobs:
               fi
             } >> .upstream-compat/body.md
           fi
+          # Model tiers live in agents-map.json, never in the settings/config schema — detect from changelog/releases prose.
+          node scripts/detect-model-drift.mjs >> .upstream-compat/body.md || true
 
       - name: Open drift PR
         if: steps.drift.outputs.changed == 'true'

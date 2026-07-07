@@ -54,6 +54,7 @@
     "check": "tsc -p tsconfig.check.json",
     "refresh:cache": "node scripts/refresh-cache.mjs",
     "snapshot:upstream": "node scripts/snapshot-upstream.mjs",
+    "snapshot:model-drift": "node scripts/detect-model-drift.mjs",
     "test": "node --test tests/*.test.mjs tests/integration/codex-to-claude/*.test.mjs",
     "test:manual:reset": "tests/integration/manual-codex-to-claude/scripts/reset.sh",
     "test:manual:run": "tests/integration/manual-codex-to-claude/scripts/run-cases.sh",
