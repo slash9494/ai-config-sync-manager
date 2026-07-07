@@ -11,13 +11,15 @@ const PROSE_FILES = [
 
 // Version-bearing mentions only — a bare "Claude Sonnet" is already a known term and would be noise.
 // "Claude" prefix is required for display names: Opus/Sonnet/Haiku/Fable are common English words, so a bare
-// "a haiku 5 lines" must not register. GPT is safe bare; it accepts hyphen or space and keeps variant suffixes
-// (gpt-4o, gpt-5.5-codex-spark) whole. Legacy mentions (GPT-4) may surface as candidates — cheap human-review noise,
-// preferred over the silent misses a version floor caused.
+// "a haiku 5 lines" must not register. GPT is safe bare; separator is optional ("GPT6", "gpt5.5") and variant
+// suffixes (gpt-4o, gpt-5.5-codex-spark) are kept whole. Legacy mentions (GPT-4) may surface as candidates —
+// cheap human-review noise, preferred over the silent misses a version floor caused.
+// Known gap (deliberate): non-gpt Codex names (o-series, "Codex Max") aren't matched — a `codex \w+` pattern
+// would flag the "Codex CLI" product name on every line. Codex ships gpt-* naming, so revisit only if that changes.
 const MODEL_PATTERNS = [
   { host: "claude", re: /Claude\s+(?:Opus|Sonnet|Haiku|Fable)\s+\d+(?:\.\d+)*/gi },
   { host: "claude", re: /claude-(?:opus|sonnet|haiku|fable)-\d[\w.-]*/gi },
-  { host: "codex", re: /\bgpt[-\s]\d+\w*(?:[.-]\w+)*/gi },
+  { host: "codex", re: /\bgpt[-\s]?\d+\w*(?:[.-]\w+)*/gi },
 ];
 
 const CLAUDE_FAMILIES = ["opus", "sonnet", "haiku", "fable"];

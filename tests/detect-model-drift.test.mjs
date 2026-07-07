@@ -88,6 +88,12 @@ test("space-separated GPT mention is flagged", () => {
   assert.equal(drift[0].host, "codex");
 });
 
+test("separator-less GPT form is flagged", () => {
+  const raws = extractModelMentions("shipped GPT6 and gpt5.5-turbo").map((m) => m.raw);
+  assert.ok(raws.includes("GPT6"));
+  assert.ok(raws.includes("gpt5.5-turbo"));
+});
+
 test("variant suffixes are kept whole, not truncated", () => {
   const raws = extractModelMentions("shipped gpt-4o and gpt-6.5-codex-spark").map((m) => m.raw);
   assert.ok(raws.includes("gpt-4o"));
