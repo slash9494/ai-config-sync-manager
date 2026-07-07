@@ -10,16 +10,52 @@ const PROSE_FILES = [
 ];
 
 // Only version-bearing mentions trigger — a bare "Claude Sonnet" is already a known term and would be noise.
+// "Claude" prefix is optional (prose says "Opus 4.8" too); GPT accepts hyphen or space and keeps trailing
+// variant suffixes (gpt-4o, gpt-5.5-codex-spark) whole.
 const MODEL_PATTERNS = [
-  { host: "claude", re: /Claude\s+(?:Opus|Sonnet|Haiku|Fable)\s+\d+(?:\.\d+)*/gi },
+  { host: "claude", re: /(?:Claude\s+)?(?:Opus|Sonnet|Haiku|Fable)\s+\d+(?:\.\d+)*/gi },
   { host: "claude", re: /claude-(?:opus|sonnet|haiku|fable)-\d[\w.-]*/gi },
-  { host: "codex", re: /\bgpt-\d+(?:\.\d+)*(?:-\w+)?/gi },
+  { host: "codex", re: /\bgpt[-\s]\d+\w*(?:[.-]\w+)*/gi },
 ];
 
 const CLAUDE_FAMILIES = ["opus", "sonnet", "haiku", "fable"];
 
 function normalize(token) {
   return token.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// float compare is a heuristic (4.10 sorts below 4.7) — fine for single-digit minor bumps; revisit if versions grow.
+function parseVersion(str) {
+  const match = String(str).match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function candidateFamily(candidate) {
+  return candidate.host === "codex" ? "gpt" : claudeFamily(candidate.key);
+}
+
+export function maxVersionByFamily(tiers) {
+  const max = new Map();
+  const add = (family, str) => {
+    const v = parseVersion(str);
+    if (v === null) return;
+    if (!max.has(family) || v > max.get(family)) max.set(family, v);
+  };
+  for (const tier of tiers) {
+    if (tier.claude)
+      for (const s of [tier.claude.alias, ...(tier.claude.terms || [])]) add(tier.claude.alias, s);
+    if (tier.codex) for (const s of [tier.codex.alias, ...(tier.codex.terms || [])]) add("gpt", s);
+  }
+  return max;
+}
+
+// New only if the family is unseen, has no recorded version, or the mention outranks the newest known version —
+// keeps legacy mentions (GPT-4, gpt-3.5) out of the drift list.
+function isNewModel(candidate, maxByFamily) {
+  const family = candidateFamily(candidate);
+  if (!family || !maxByFamily.has(family)) return true;
+  const v = parseVersion(candidate.raw);
+  return v === null || v > maxByFamily.get(family);
 }
 
 export function knownModelTokens(tiers) {
@@ -62,8 +98,10 @@ function tierHint(candidate, tiers) {
 
 export function findModelDrift(text, tiers) {
   const known = knownModelTokens(tiers);
+  const maxByFamily = maxVersionByFamily(tiers);
   return extractModelMentions(text)
     .filter((c) => !known.has(c.key))
+    .filter((c) => isNewModel(c, maxByFamily))
     .map((c) => ({ ...c, ...tierHint(c, tiers) }));
 }
 
