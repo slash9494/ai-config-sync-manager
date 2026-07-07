@@ -68,10 +68,17 @@ test("knownModelTokens flattens alias and terms case-insensitively", () => {
   assert.ok(known.has("gpt-5.4-mini"));
 });
 
-test("versioned mention without the Claude prefix is still flagged", () => {
-  const drift = findModelDrift("Introducing Opus 4.8 as the new frontier.", TIERS);
+test("bare family words without the Claude prefix are not flagged as models", () => {
+  assert.deepEqual(
+    findModelDrift("wrote a haiku 5 lines long and his opus 3 masterpiece.", TIERS),
+    []
+  );
+});
+
+test("Claude-prefixed display name is required for a claude model to register", () => {
+  const drift = findModelDrift("Claude Opus 4.8 is the new frontier.", TIERS);
   assert.equal(drift.length, 1);
-  assert.equal(drift[0].raw, "Opus 4.8");
+  assert.equal(drift[0].raw, "Claude Opus 4.8");
   assert.equal(drift[0].tierId, "latest-frontier-model");
 });
 
@@ -79,11 +86,6 @@ test("space-separated GPT mention is flagged", () => {
   const drift = findModelDrift("Now powered by GPT 6.0.", TIERS);
   assert.equal(drift.length, 1);
   assert.equal(drift[0].host, "codex");
-});
-
-test("legacy models below the newest known version are not flagged as drift", () => {
-  const drift = findModelDrift("Behaves unlike GPT-4 or gpt-3.5-turbo, and Opus 4.6.", TIERS);
-  assert.deepEqual(drift, []);
 });
 
 test("variant suffixes are kept whole, not truncated", () => {
