@@ -20,8 +20,8 @@ const PROSE_FILES = [
 // Browser/Skills/Agent are products/plans) plus grammar words — NOT guessed entries. New names surface
 // by default; cheap human-review noise beats a silent miss (this is what let a tier bump slip through).
 // Fable is excluded here (a real model, intentionally not a mapped tier).
-// Known gaps (deliberate): a name with no Claude/gpt anchor ("Terra" alone) is not matched; non-gpt
-// Codex ids (o-series) are not matched by the gpt anchor (not present in current snapshots).
+// Known gap (deliberate): a name with no anchor at all ("Terra" alone, no Claude/gpt/o prefix) is not
+// matched — it would false-positive on the common word.
 const MODEL_STOPWORDS = new Set([
   "family",
   "families",
@@ -52,6 +52,9 @@ const MODEL_PATTERNS = [
   { host: "claude", re: /claude-([a-z]+)-\d[\w.-]*/gi, nameGroup: 1 },
   { host: "codex", re: /\bgpt[-\s]?\d+\w*(?:[.-]\w+)*/gi },
   { host: "codex", re: /\b[Gg][Pp][Tt][-\s]?\d+(?:\.\d+)*\s+([A-Z][a-zA-Z]*)\b/g, nameGroup: 1 },
+  // OpenAI o-series reasoning ids (o1, o3-pro, o4-mini). Bare "o<digit>" is anchored on a word boundary
+  // and a required digit, so prose like "to 3" or "video" does not match.
+  { host: "codex", re: /\bo\d+(?:-[a-z]+)*\b/gi },
 ];
 
 const CLAUDE_FAMILIES = ["opus", "sonnet", "haiku"];
@@ -83,7 +86,12 @@ export function extractModelMentions(text) {
       if (!found.has(key)) found.set(key, { raw, host, key });
     }
   }
-  return [...found.values()];
+  // Drop a bare-id fragment when a longer same-host mention extends it with a name ("GPT-7.0" vs
+  // "GPT-7.0 Nova") — the specific one already carries the family, so the fragment is duplicate noise.
+  const all = [...found.values()];
+  return all.filter(
+    (a) => !all.some((b) => b !== a && b.host === a.host && b.key.startsWith(`${a.key} `))
+  );
 }
 
 function claudeFamily(key) {

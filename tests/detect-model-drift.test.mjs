@@ -125,6 +125,19 @@ test("an unpredictable future codex tier name surfaces without being enumerated"
   assert.ok(raws.includes("GPT-7.0 Nova"));
 });
 
+test("OpenAI o-series ids are detected", () => {
+  const raws = extractModelMentions("Shipped o3-pro, o4-mini, and o1 today.").map((m) => m.raw);
+  assert.ok(raws.includes("o3-pro"));
+  assert.ok(raws.includes("o4-mini"));
+  assert.ok(raws.includes("o1"));
+});
+
+test("a bare id fragment is dropped when a named mention extends it", () => {
+  const raws = extractModelMentions("The GPT-7.0 Nova model ships.").map((m) => m.raw);
+  assert.ok(raws.includes("GPT-7.0 Nova"));
+  assert.ok(!raws.includes("GPT-7.0"));
+});
+
 test("an unpredictable future claude family surfaces without being enumerated", () => {
   const drift = findModelDrift("Meet Claude Nova 1, our newest family.", TIERS);
   assert.ok(drift.some((c) => c.raw === "Claude Nova 1"));
