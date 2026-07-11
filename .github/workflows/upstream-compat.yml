@@ -422,21 +422,25 @@ jobs:
           # Model tiers live in agents-map.json, never in the settings/config schema — detect from changelog/releases prose.
           node scripts/detect-model-drift.mjs >> .upstream-compat/body.md || true
           # Raw diff goes LAST, capped to the remaining GitHub PR-body budget (hard limit 65536).
-          # Analysis sections above always survive; the full diff is in the Files-changed tab anyway.
+          # The analysis sections above survive as long as they fit the budget; the raw diff absorbs
+          # truncation (full diff is in the Files-changed tab). The 160-byte reserve covers the blank
+          # line + closing fence + truncation notice appended below so the total stays under 65536.
           body_bytes=$(wc -c < .upstream-compat/body.md)
-          budget=$((65000 - body_bytes))
-          [ "$budget" -lt 0 ] && budget=0
+          budget=$((65000 - body_bytes - 160))
           diff_bytes=$(wc -c < .upstream-compat/diff.md)
-          {
-            echo
-            if [ "$diff_bytes" -gt "$budget" ]; then
+          if [ "$budget" -le 0 ]; then
+            : # analysis already fills the budget — append no diff rather than overflow the hard limit
+          elif [ "$diff_bytes" -gt "$budget" ]; then
+            {
+              echo
               head -c "$budget" .upstream-compat/diff.md
               echo
-              echo "_…diff truncated to fit the PR body (${diff_bytes} bytes total, ${budget} shown). Full diff in the Files changed tab._"
-            else
-              cat .upstream-compat/diff.md
-            fi
-          } >> .upstream-compat/body.md
+              echo '```'
+              echo "_…diff truncated to fit the PR body (${diff_bytes} bytes total, ~${budget} shown). Full diff in the Files changed tab._"
+            } >> .upstream-compat/body.md
+          else
+            { echo; cat .upstream-compat/diff.md; } >> .upstream-compat/body.md
+          fi
 
       - name: Open drift PR
         if: steps.drift.outputs.changed == 'true'
