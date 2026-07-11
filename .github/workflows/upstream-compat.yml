@@ -52,25 +52,16 @@ jobs:
               echo "## Changed files"
               echo
               git diff --name-only -- snapshots | sed 's/^/- /'
-              echo
+            } > .upstream-compat/changed.md
+            # Raw diff kept in its own file; appended LAST in the body step and capped to the
+            # remaining PR-body budget so analysis sections never get truncated away.
+            {
               echo "## Diff"
               echo
               echo '```diff'
               git diff -- snapshots
               echo '```'
             } > .upstream-compat/diff.md
-            # Truncate to ~60KB if huge.
-            max_bytes=61440
-            actual_bytes=$(wc -c < .upstream-compat/diff.md)
-            if [ "$actual_bytes" -gt "$max_bytes" ]; then
-              head -c "$max_bytes" .upstream-compat/diff.md > .upstream-compat/diff.truncated.md
-              {
-                cat .upstream-compat/diff.truncated.md
-                echo
-                echo "_…diff truncated (${actual_bytes} bytes total, showing first ${max_bytes})._"
-              } > .upstream-compat/diff.md
-              rm .upstream-compat/diff.truncated.md
-            fi
           fi
 
       - name: Build issue body
@@ -85,7 +76,7 @@ jobs:
             echo
             echo "Source: \`scripts/snapshot-upstream.mjs\` run via \`.github/workflows/upstream-compat.yml\`."
             echo
-            cat .upstream-compat/diff.md
+            cat .upstream-compat/changed.md
             echo
             echo "## Manual review checklist"
             echo
@@ -430,6 +421,22 @@ jobs:
           fi
           # Model tiers live in agents-map.json, never in the settings/config schema — detect from changelog/releases prose.
           node scripts/detect-model-drift.mjs >> .upstream-compat/body.md || true
+          # Raw diff goes LAST, capped to the remaining GitHub PR-body budget (hard limit 65536).
+          # Analysis sections above always survive; the full diff is in the Files-changed tab anyway.
+          body_bytes=$(wc -c < .upstream-compat/body.md)
+          budget=$((65000 - body_bytes))
+          [ "$budget" -lt 0 ] && budget=0
+          diff_bytes=$(wc -c < .upstream-compat/diff.md)
+          {
+            echo
+            if [ "$diff_bytes" -gt "$budget" ]; then
+              head -c "$budget" .upstream-compat/diff.md
+              echo
+              echo "_…diff truncated to fit the PR body (${diff_bytes} bytes total, ${budget} shown). Full diff in the Files changed tab._"
+            else
+              cat .upstream-compat/diff.md
+            fi
+          } >> .upstream-compat/body.md
 
       - name: Open drift PR
         if: steps.drift.outputs.changed == 'true'
