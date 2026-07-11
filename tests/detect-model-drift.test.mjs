@@ -120,6 +120,24 @@ test("bare capability-tier words without the gpt anchor are not flagged", () => 
   );
 });
 
+test("an unpredictable future codex tier name surfaces without being enumerated", () => {
+  const raws = extractModelMentions("The new GPT-7.0 Nova model ships today.").map((m) => m.raw);
+  assert.ok(raws.includes("GPT-7.0 Nova"));
+});
+
+test("an unpredictable future claude family surfaces without being enumerated", () => {
+  const drift = findModelDrift("Meet Claude Nova 1, our newest family.", TIERS);
+  assert.ok(drift.some((c) => c.raw === "Claude Nova 1"));
+});
+
+test("capitalized non-model words in a model position are dropped by the stopword denylist", () => {
+  const raws = extractModelMentions("The GPT-5.6 Family grows; Claude Code 2 shipped.").map(
+    (m) => m.raw
+  );
+  assert.ok(!raws.some((r) => /Family/.test(r)));
+  assert.ok(!raws.some((r) => /Claude Code/.test(r)));
+});
+
 test("renderSection returns empty string with no candidates and a section otherwise", () => {
   assert.equal(renderSection([]), "");
   const section = renderSection(findModelDrift("Claude Sonnet 5 launched.", TIERS));
