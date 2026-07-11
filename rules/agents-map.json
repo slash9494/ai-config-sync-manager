@@ -28,18 +28,18 @@
         "id": "latest-frontier-model",
         "claude": {
           "alias": "opus",
-          "terms": ["opus4.7(latest)", "opus 4.7 latest", "Claude Opus 4.7", "Opus 4.7", "Opus"]
+          "terms": ["opus4.8(latest)", "opus 4.8 latest", "Claude Opus 4.8", "Opus 4.8", "Opus"]
         },
         "codex": {
-          "alias": "gpt-5.5",
-          "terms": ["gpt5.5(latest)", "gpt-5.5 latest", "GPT-5.5", "GPT 5.5"]
+          "alias": "gpt-5.6",
+          "terms": ["gpt5.6(latest)", "gpt-5.6 latest", "GPT-5.6", "GPT 5.6"]
         }
       },
       {
         "id": "balanced-model",
         "claude": {
           "alias": "sonnet",
-          "terms": ["sonnet(latest)", "Claude Sonnet", "Sonnet"]
+          "terms": ["sonnet(latest)", "Claude Sonnet 5", "Claude Sonnet", "Sonnet 5", "Sonnet"]
         },
         "codex": {
           "alias": "gpt-5.4",
