@@ -17,10 +17,22 @@ const PROSE_FILES = [
 // Fable is intentionally excluded — it is only a short-lived Claude offering, not a mapped tier.
 // Known gap (deliberate): non-gpt Codex names (o-series, "Codex Max") aren't matched — a `codex \w+` pattern
 // would flag the "Codex CLI" product name on every line. Codex ships gpt-* naming, so revisit only if that changes.
+// GPT-5.6 introduced space-separated capability-tier names (Sol/Terra/Luna). The gpt-* rule keeps the
+// hyphenated API ids (gpt-5.6-terra) whole; the extra rule catches the prose form ("GPT-5.6 Terra"). Bare
+// "Terra"/"Luna"/"Sol" stay a known gap — they are common words and would false-positive without the gpt anchor.
+// Extend CODEX_VARIANT_NAMES when a new tier name ships.
+const CODEX_VARIANT_NAMES = ["Sol", "Terra", "Luna"];
 const MODEL_PATTERNS = [
   { host: "claude", re: /Claude\s+(?:Opus|Sonnet|Haiku)\s+\d+(?:\.\d+)*/gi },
   { host: "claude", re: /claude-(?:opus|sonnet|haiku)-\d[\w.-]*/gi },
   { host: "codex", re: /\bgpt[-\s]?\d+\w*(?:[.-]\w+)*/gi },
+  {
+    host: "codex",
+    re: new RegExp(
+      `\\bgpt[-\\s]?\\d+(?:\\.\\d+)*\\s+(?:${CODEX_VARIANT_NAMES.join("|")})\\b`,
+      "gi"
+    ),
+  },
 ];
 
 const CLAUDE_FAMILIES = ["opus", "sonnet", "haiku"];

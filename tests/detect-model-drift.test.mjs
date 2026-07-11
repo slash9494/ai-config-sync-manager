@@ -96,6 +96,30 @@ test("variant suffixes are kept whole, not truncated", () => {
   assert.ok(raws.includes("gpt-6.5-codex-spark"));
 });
 
+test("space-separated GPT capability-tier names are flagged", () => {
+  const raws = extractModelMentions(
+    "GPT-5.6 Sol leads, GPT-5.6 Terra balances, GPT-5.6 Luna scales."
+  ).map((m) => m.raw);
+  assert.ok(raws.includes("GPT-5.6 Sol"));
+  assert.ok(raws.includes("GPT-5.6 Terra"));
+  assert.ok(raws.includes("GPT-5.6 Luna"));
+});
+
+test("hyphenated GPT variant ids stay whole", () => {
+  const raws = extractModelMentions(
+    "Use gpt-5.6-terra for balance and gpt-5.6-luna for volume."
+  ).map((m) => m.raw);
+  assert.ok(raws.includes("gpt-5.6-terra"));
+  assert.ok(raws.includes("gpt-5.6-luna"));
+});
+
+test("bare capability-tier words without the gpt anchor are not flagged", () => {
+  assert.deepEqual(
+    findModelDrift("Sol, Terra, and Luna are Latin words for sun, earth, and moon.", TIERS),
+    []
+  );
+});
+
 test("renderSection returns empty string with no candidates and a section otherwise", () => {
   assert.equal(renderSection([]), "");
   const section = renderSection(findModelDrift("Claude Sonnet 5 launched.", TIERS));
