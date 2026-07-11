@@ -57,8 +57,6 @@ const MODEL_PATTERNS = [
   { host: "codex", re: /\bo\d+(?:-[a-z]+)*\b/gi },
 ];
 
-const CLAUDE_FAMILIES = ["opus", "sonnet", "haiku"];
-
 function normalize(token) {
   return token.toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -94,16 +92,15 @@ export function extractModelMentions(text) {
   );
 }
 
-function claudeFamily(key) {
-  return CLAUDE_FAMILIES.find((fam) => key.includes(fam)) || null;
+// Family list is derived from the tiers, not enumerated — a new claude alias needs no edit here.
+function claudeTier(key, tiers) {
+  return tiers.find((t) => t.claude?.alias && key.includes(t.claude.alias)) || null;
 }
 
 function tierHint(candidate, tiers) {
   if (candidate.host === "codex") return { tierId: null, note: "codex tier 확인 필요" };
-  const fam = claudeFamily(candidate.key);
-  if (!fam) return { tierId: null, note: "새 tier 후보" };
-  const tier = tiers.find((t) => t.claude && t.claude.alias === fam);
-  if (!tier) return { tierId: null, note: `새 tier 후보 (${fam})` };
+  const tier = claudeTier(candidate.key, tiers);
+  if (!tier) return { tierId: null, note: "새 tier 후보" };
   return { tierId: tier.id, note: "기존 tier terms 갱신 권장" };
 }
 
@@ -138,7 +135,11 @@ function addedProse() {
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
     });
-  } catch {
+  } catch (err) {
+    // Surface the failure — a silent "" is indistinguishable from "no new prose" and would report no drift.
+    process.stderr.write(
+      `detect-model-drift: git diff failed, treating prose as empty: ${err.message}\n`
+    );
     return "";
   }
   return raw
