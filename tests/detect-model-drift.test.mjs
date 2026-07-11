@@ -130,6 +130,21 @@ test("an unpredictable future claude family surfaces without being enumerated", 
   assert.ok(drift.some((c) => c.raw === "Claude Nova 1"));
 });
 
+test("version-then-name Claude order is matched (Claude 3.5 Haiku)", () => {
+  const raws = extractModelMentions("Claude 3.5 Haiku and Claude 5.0 Zenith shipped.").map(
+    (m) => m.raw
+  );
+  assert.ok(raws.includes("Claude 3.5 Haiku"));
+  assert.ok(raws.includes("Claude 5.0 Zenith"));
+});
+
+test("Claude product/plan words in the name slot are dropped (grounded stopwords)", () => {
+  const raws = extractModelMentions(
+    "Claude Code 2 and Claude Platform 3 and Claude Max 4 updated."
+  ).map((m) => m.raw);
+  assert.equal(raws.length, 0);
+});
+
 test("capitalized non-model words in a model position are dropped by the stopword denylist", () => {
   const raws = extractModelMentions("The GPT-5.6 Family grows; Claude Code 2 shipped.").map(
     (m) => m.raw

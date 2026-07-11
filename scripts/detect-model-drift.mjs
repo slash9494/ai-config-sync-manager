@@ -13,12 +13,15 @@ const PROSE_FILES = [
 // "Sonnet" or "a haiku 5 lines" is noise. Model FAMILY / tier names are deliberately NOT enumerated:
 // they are unpredictable (Opus→…, Sol/Terra/Luna, and whatever ships next), so an allowlist of known
 // names would silently miss the very thing this detector exists to catch. Instead we match any
-// capitalized name in a model position and drop it only when it is a known non-model word
-// (MODEL_STOPWORDS) — a stable grammar/product denylist. New names surface by default; cheap
-// human-review noise is preferred over a silent miss (this is what let a tier bump slip through before).
-// Fable is excluded via the stopword list (a real model, intentionally not a mapped tier).
-// Known gap (deliberate): a name with no Claude/gpt anchor ("Terra" alone) is not matched — it would
-// false-positive on the common word; non-gpt Codex ids (o-series) also stay unmatched by the gpt anchor.
+// capitalized name in a model position and drop it only when it is a known non-model word.
+// MODEL_STOPWORDS is the inverse risk of an allowlist: a stopword that later becomes a real model name
+// silently misses it, so the list is kept tight and grounded in words actually observed in the
+// "Claude <word> <ver>" slot of the current snapshots (Code appears 130×, Platform/API/Pro/Max/Desktop/
+// Browser/Skills/Agent are products/plans) plus grammar words — NOT guessed entries. New names surface
+// by default; cheap human-review noise beats a silent miss (this is what let a tier bump slip through).
+// Fable is excluded here (a real model, intentionally not a mapped tier).
+// Known gaps (deliberate): a name with no Claude/gpt anchor ("Terra" alone) is not matched; non-gpt
+// Codex ids (o-series) are not matched by the gpt anchor (not present in current snapshots).
 const MODEL_STOPWORDS = new Set([
   "family",
   "families",
@@ -28,22 +31,24 @@ const MODEL_STOPWORDS = new Set([
   "preview",
   "release",
   "generation",
-  "today",
-  "now",
-  "available",
-  "api",
   "code",
-  "desktop",
   "platform",
-  "app",
-  "cli",
-  "bedrock",
-  "vertex",
-  "azure",
+  "api",
+  "pro",
+  "max",
+  "desktop",
+  "browser",
+  "skills",
+  "agent",
   "fable",
 ]);
+// Claude display names ship in both orders — name-then-version ("Claude Opus 4.8") and
+// version-then-name ("Claude 3.5 Haiku", still current) — so both are matched. The anchor is
+// case-insensitive ([Cc]laude / [Gg][Pp][Tt]) while the name char-class stays case-sensitive: an /i/
+// flag would collapse [A-Z] and let lowercase prose words through as false model names.
 const MODEL_PATTERNS = [
-  { host: "claude", re: /Claude\s+([A-Z][a-zA-Z]*)\s+\d+(?:\.\d+)*/g, nameGroup: 1 },
+  { host: "claude", re: /[Cc]laude\s+([A-Z][a-zA-Z]*)\s+\d+(?:\.\d+)*/g, nameGroup: 1 },
+  { host: "claude", re: /[Cc]laude\s+\d+(?:\.\d+)*\s+([A-Z][a-zA-Z]*)/g, nameGroup: 1 },
   { host: "claude", re: /claude-([a-z]+)-\d[\w.-]*/gi, nameGroup: 1 },
   { host: "codex", re: /\bgpt[-\s]?\d+\w*(?:[.-]\w+)*/gi },
   { host: "codex", re: /\b[Gg][Pp][Tt][-\s]?\d+(?:\.\d+)*\s+([A-Z][a-zA-Z]*)\b/g, nameGroup: 1 },
