@@ -8,7 +8,459 @@
     "schema_desc_hash": "First 12 hex chars of sha256 over the schema description string. Drift triggers re-review.",
     "recheck_after": "ISO date after which compat scan flags the entry as review-due. Default: Claude +90d, Codex +180d (Claude keys are user-facing toggles with higher impact)."
   },
-  "claude_top_level": {},
+  "claude_top_level": {
+    "advisorModel": {
+      "reason": "Claude Code client model-selection preference, not the cross-host agent tier mapping; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "76ec6b2d55f5",
+      "recheck_after": "2026-10-09"
+    },
+    "agentPushNotifEnabled": {
+      "reason": "Claude Code client notification toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f0270e4208f8",
+      "recheck_after": "2026-10-09"
+    },
+    "allowAllClaudeAiMcps": {
+      "reason": "Claude Code client MCP-connector policy toggle, not an MCP server definition; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "4fbc393ee032",
+      "recheck_after": "2026-10-09"
+    },
+    "autoCompactEnabled": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "88eb11f3499e",
+      "recheck_after": "2026-10-09"
+    },
+    "autoScrollEnabled": {
+      "reason": "Claude Code TUI display preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "547b4b74e33b",
+      "recheck_after": "2026-10-09"
+    },
+    "awaySummaryEnabled": {
+      "reason": "Claude Code client notification toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "660d3a2e5580",
+      "recheck_after": "2026-10-09"
+    },
+    "axScreenReader": {
+      "reason": "Claude Code accessibility toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "1765e193ccba",
+      "recheck_after": "2026-10-09"
+    },
+    "claudeMd": {
+      "reason": "Claude Code CLAUDE.md loading toggle; host-specific memory-file handling, no Codex config key.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c052ced890c7",
+      "recheck_after": "2026-10-09"
+    },
+    "disableAgentView": {
+      "reason": "Claude Code TUI feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "757cc9e3944d",
+      "recheck_after": "2026-10-09"
+    },
+    "disableArtifact": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "b2cc8112ce3b",
+      "recheck_after": "2026-10-09"
+    },
+    "disableAutoMode": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "04090592190c",
+      "recheck_after": "2026-10-09"
+    },
+    "disableBundledSkills": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "08486bb94674",
+      "recheck_after": "2026-10-09"
+    },
+    "disableClaudeAiConnectors": {
+      "reason": "Claude Code client connector policy toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "26e2cd7b10e6",
+      "recheck_after": "2026-10-09"
+    },
+    "disableRemoteControl": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c69cc696e60d",
+      "recheck_after": "2026-10-09"
+    },
+    "disableWorkflows": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "420cc88404e7",
+      "recheck_after": "2026-10-09"
+    },
+    "editorMode": {
+      "reason": "Claude Code TUI editor-mode preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "fd8a2bd756ba",
+      "recheck_after": "2026-10-09"
+    },
+    "enforceAvailableModels": {
+      "reason": "Claude Code client model-allowlist enforcement toggle; not the cross-host agent tier mapping.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "0ee032653c74",
+      "recheck_after": "2026-10-09"
+    },
+    "fallbackModel": {
+      "reason": "Claude Code client fallback-model preference; not the cross-host agent tier mapping.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c19d6aba5e99",
+      "recheck_after": "2026-10-09"
+    },
+    "fileCheckpointingEnabled": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "e11b076e54a6",
+      "recheck_after": "2026-10-09"
+    },
+    "footerLinksRegexes": {
+      "reason": "Claude Code TUI footer-link display config; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "4c386886a2ef",
+      "recheck_after": "2026-10-09"
+    },
+    "gcpAuthRefresh": {
+      "reason": "Claude Code GCP auth-refresh toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "7e8c0cae6fe8",
+      "recheck_after": "2026-10-09"
+    },
+    "inputNeededNotifEnabled": {
+      "reason": "Claude Code client notification toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f12a73382a23",
+      "recheck_after": "2026-10-09"
+    },
+    "leftArrowOpensAgents": {
+      "reason": "Claude Code TUI keybinding preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "b82359ca1506",
+      "recheck_after": "2026-10-09"
+    },
+    "managedMcpServers": {
+      "reason": "Claude Desktop managed MCP-server policy delivery, not user MCP config synced by this tool; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "25e8467fb566",
+      "recheck_after": "2026-10-09"
+    },
+    "maxSkillDescriptionChars": {
+      "reason": "Claude Code client skill-listing sizing knob; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "51eee94a53b0",
+      "recheck_after": "2026-10-09"
+    },
+    "pluginSuggestionMarketplaces": {
+      "reason": "Claude Code client plugin-suggestion source list; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "30de623e64be",
+      "recheck_after": "2026-10-09"
+    },
+    "policyHelper": {
+      "reason": "Claude Code client policy-helper config; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "66fb2ce9b8eb",
+      "recheck_after": "2026-10-09"
+    },
+    "preferredNotifChannel": {
+      "reason": "Claude Code client notification-channel preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f512cff83bf2",
+      "recheck_after": "2026-10-09"
+    },
+    "remoteControlAtStartup": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "3587129d6f77",
+      "recheck_after": "2026-10-09"
+    },
+    "requiredMaximumVersion": {
+      "reason": "Claude Code client version gate; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "ce03bb0f7a98",
+      "recheck_after": "2026-10-09"
+    },
+    "requiredMinimumVersion": {
+      "reason": "Claude Code client version gate; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "3c4a03e2e307",
+      "recheck_after": "2026-10-09"
+    },
+    "respondToBashCommands": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "0f9e40fe764e",
+      "recheck_after": "2026-10-09"
+    },
+    "skillListingBudgetFraction": {
+      "reason": "Claude Code client skill-listing sizing knob; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c4c7f16527ed",
+      "recheck_after": "2026-10-09"
+    },
+    "sshConfigs": {
+      "reason": "Claude Desktop managed SSH-connection setting; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "2125459a3378",
+      "recheck_after": "2026-10-09"
+    },
+    "sshHostAllowlist": {
+      "reason": "Claude Desktop managed SSH host allowlist; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "537e0b6d00d9",
+      "recheck_after": "2026-10-09"
+    },
+    "syntaxHighlightingDisabled": {
+      "reason": "Claude Code TUI display preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "55fd1ac79f3e",
+      "recheck_after": "2026-10-09"
+    },
+    "theme": {
+      "reason": "Claude Code TUI color-theme preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "3444a606410f",
+      "recheck_after": "2026-10-09"
+    },
+    "verbose": {
+      "reason": "Claude Code TUI verbosity preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c985dca794dd",
+      "recheck_after": "2026-10-09"
+    },
+    "voice": {
+      "reason": "Claude Code voice-dictation setting; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "b0bb3d1b6050",
+      "recheck_after": "2026-10-09"
+    },
+    "wheelScrollAccelerationEnabled": {
+      "reason": "Claude Code TUI scroll preference; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "07b597ec57a0",
+      "recheck_after": "2026-10-09"
+    },
+    "workflowKeywordTriggerEnabled": {
+      "reason": "Claude Code client feature toggle; no Codex config equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "551deed90063",
+      "recheck_after": "2026-10-09"
+    }
+  },
   "claude_nested": {},
   "codex_top_level": {
     "apps_mcp_product_sku": {
@@ -100,6 +552,16 @@
       },
       "recheck_after": "2027-01-02"
     },
+    "CurrentTimeReminderConfigToml.delivery_mode": {
+      "reason": "Codex time-reminder host feature; same family as CurrentTimeReminderConfigToml.enabled (already allowlisted). No Claude equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-07"
+    },
     "CurrentTimeReminderConfigToml.enabled": {
       "reason": "Codex-internal current-time reminder injection; no Claude equivalent.",
       "decided_in": "#24",
@@ -119,6 +581,37 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-01-02"
+    },
+    "CurrentTimeReminderConfigToml.reminder_interval_seconds": {
+      "reason": "Codex time-reminder host feature; same family as CurrentTimeReminderConfigToml.enabled (already allowlisted). No Claude equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-07"
+    },
+    "CurrentTimeReminderConfigToml.sleep_tool": {
+      "reason": "Codex time-reminder host feature; same family as CurrentTimeReminderConfigToml.enabled (already allowlisted). No Claude equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "9e9d01fcc8fd",
+      "recheck_after": "2027-01-07"
+    },
+    "MultiAgentV2ConfigToml.multi_agent_mode_hint_text": {
+      "reason": "Codex multi-agent host UI hint text; no Claude equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-07"
     },
     "OrchestratorFeatureToml.enabled": {
       "reason": "Codex-internal orchestrator feature toggle; see codex_top_level.orchestrator.",
@@ -149,6 +642,16 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-01-02"
+    },
+    "RawMcpServerConfig.auth": {
+      "reason": "Codex MCP server auth/credentials; ai-config-sync maps MCP tool-approval only, never transport/auth. No cross-host sync.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-07"
     },
     "RolloutBudgetConfigToml.enabled": {
       "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
@@ -210,6 +713,17 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-01-02"
+    },
+    "TokenBudgetConfigToml.guidance_message": {
+      "reason": "Codex token-budget host feature; same family as TokenBudgetConfigToml.enabled (already allowlisted). No Claude equivalent.",
+      "decided_in": "#31",
+      "decided_at": "2026-07-11",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "7c9e67860d0c",
+      "recheck_after": "2027-01-07"
     },
     "TokenBudgetConfigToml.reminder_message_template": {
       "reason": "Codex pre-auto-compaction reminder; nearest Claude controls are env vars (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_CODE_AUTO_COMPACT_WINDOW) which are not sync targets.",
