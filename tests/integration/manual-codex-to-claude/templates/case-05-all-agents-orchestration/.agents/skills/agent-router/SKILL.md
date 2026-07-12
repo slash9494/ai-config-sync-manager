@@ -1,7 +1,7 @@
 ---
 name: agent-router
 description: Choose one external agent for bounded comparison work.
-model: gpt-5.5
+model: gpt-5.6
 model_reasoning_effort: high
 sandbox_mode: workspace-write
 ---
