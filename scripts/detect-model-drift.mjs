@@ -14,15 +14,17 @@ const PROSE_FILES = [
 // they are unpredictable (Opus→…, Sol/Terra/Luna, and whatever ships next), so an allowlist of known
 // names would silently miss the very thing this detector exists to catch. Instead we match any
 // capitalized name in a model position and drop it only when it is a known non-model word.
-// MODEL_STOPWORDS is the inverse risk of an allowlist: a stopword that later becomes a real model name
-// silently misses it, so the list is kept tight and grounded in words actually observed in the
-// "Claude <word> <ver>" slot of the current snapshots (Code appears 130×, Platform/API/Pro/Max/Desktop/
-// Browser/Skills/Agent are products/plans) plus grammar words — NOT guessed entries. New names surface
-// by default; cheap human-review noise beats a silent miss (this is what let a tier bump slip through).
-// Fable is excluded here (a real model, intentionally not a mapped tier).
+// Stopwords are the inverse risk of an allowlist: a stopword that later becomes a real model name
+// silently misses it, so the lists stay tight, grounded, and HOST-SCOPED. Grammar words are never a
+// model in any position → global. Product/plan words were grounded in the "Claude <word>" slot
+// (Code appears 130×, Platform/API/Pro/Max/Desktop/Browser/Skills/Agent/Fable are Claude products,
+// plans, or an unmapped model) — but on the Codex side "Pro"/"Max" are REAL model tiers (GPT-5 Pro,
+// o1-pro), so applying them there would silently drop a new variant whose base tier is already known.
+// Hence product words apply to the claude patterns only. New names surface by default; cheap
+// human-review noise beats a silent miss (this is what let a tier bump slip through before).
 // Known gap (deliberate): a name with no anchor at all ("Terra" alone, no Claude/gpt/o prefix) is not
 // matched — it would false-positive on the common word.
-const MODEL_STOPWORDS = new Set([
+const GRAMMAR_STOPWORDS = new Set([
   "family",
   "families",
   "series",
@@ -31,6 +33,8 @@ const MODEL_STOPWORDS = new Set([
   "preview",
   "release",
   "generation",
+]);
+const CLAUDE_PRODUCT_STOPWORDS = new Set([
   "code",
   "platform",
   "api",
@@ -42,6 +46,11 @@ const MODEL_STOPWORDS = new Set([
   "agent",
   "fable",
 ]);
+function isStopword(host, name) {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  return GRAMMAR_STOPWORDS.has(lower) || (host === "claude" && CLAUDE_PRODUCT_STOPWORDS.has(lower));
+}
 // Claude display names ship in both orders — name-then-version ("Claude Opus 4.8") and
 // version-then-name ("Claude 3.5 Haiku", still current) — so both are matched. The anchor is
 // case-insensitive ([Cc]laude / [Gg][Pp][Tt]) while the name char-class stays case-sensitive: an /i/
@@ -78,7 +87,7 @@ export function extractModelMentions(text) {
   const found = new Map();
   for (const { host, re, nameGroup } of MODEL_PATTERNS) {
     for (const match of text.matchAll(re)) {
-      if (nameGroup && MODEL_STOPWORDS.has(match[nameGroup]?.toLowerCase())) continue;
+      if (nameGroup && isStopword(host, match[nameGroup])) continue;
       const raw = match[0];
       const key = normalize(raw);
       if (!found.has(key)) found.set(key, { raw, host, key });

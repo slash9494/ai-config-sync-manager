@@ -125,6 +125,17 @@ test("an unpredictable future codex tier name surfaces without being enumerated"
   assert.ok(raws.includes("GPT-7.0 Nova"));
 });
 
+test("product/plan stopwords are claude-scoped — codex Pro/Max variants still surface", () => {
+  // "Pro"/"Max" are Claude plans but real Codex model tiers; dropping them on the codex side would
+  // silently miss a new variant whose base tier is already known (edge-audit EA-1/EA-2).
+  const codex = extractModelMentions("GPT-5.4 Pro and GPT-5.6 Max launched.").map((m) => m.raw);
+  assert.ok(codex.includes("GPT-5.4 Pro"));
+  assert.ok(codex.includes("GPT-5.6 Max"));
+  // Same words on the claude side stay filtered (Claude Pro / Claude Max are plans, not models).
+  const claude = extractModelMentions("Claude Pro 5 and Claude Max 6 updated.").map((m) => m.raw);
+  assert.equal(claude.length, 0);
+});
+
 test("OpenAI o-series ids are detected", () => {
   const raws = extractModelMentions("Shipped o3-pro, o4-mini, and o1 today.").map((m) => m.raw);
   assert.ok(raws.includes("o3-pro"));
