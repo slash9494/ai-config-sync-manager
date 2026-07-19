@@ -1,16 +1,20 @@
-import { join } from "node:path";
+const BOARD_TITLE = "AI Config Sync Board";
 
-const STATUS_ORDER = ["conflict", "unsupported", "claude-only", "codex-only", "in-sync"];
-
+// Ordered by display priority (most-actionable first); STATUS_ORDER derives from this.
 const STATUS_META = {
-  "in-sync": { label: "In sync", color: "#22c55e" },
   conflict: { label: "Conflict", color: "#ef4444" },
+  unsupported: { label: "Unsupported", color: "#f59e0b" },
   "claude-only": { label: "Claude only", color: "#9ca3af" },
   "codex-only": { label: "Codex only", color: "#9ca3af" },
-  unsupported: { label: "Unsupported", color: "#f59e0b" },
+  "in-sync": { label: "In sync", color: "#22c55e" },
 };
 
-export function buildBoardModel(report, inventory = [], describe = () => "") {
+const STATUS_ORDER = Object.keys(STATUS_META);
+
+export function buildBoardModel(
+  { inventory = [], overlays = [], direction, scopes = [] },
+  describe = () => ""
+) {
   const merged = new Map();
 
   for (const item of inventory) {
@@ -26,9 +30,7 @@ export function buildBoardModel(report, inventory = [], describe = () => "") {
     });
   }
 
-  for (const entry of report.entries ?? []) {
-    overlayEntry(merged, entry);
-  }
+  for (const overlay of overlays) applyOverlay(merged, overlay);
 
   const items = [...merged.values()];
   for (const item of items) item.description = safeDescribe(describe, item);
@@ -36,18 +38,13 @@ export function buildBoardModel(report, inventory = [], describe = () => "") {
   const areas = [...groupByArea(items).values()]
     .map(buildAreaSection)
     .sort((a, b) => b.count - a.count);
-  const statusCounts = mergeStatusCounts(areas.map((area) => area.statusCounts));
 
   return {
-    title: "AI Config Sync Board",
-    direction: report.direction ?? { from: report.source, to: report.target },
-    scopes: report.scopes ?? [],
+    direction,
+    scopes,
     generatedAt: new Date().toISOString(),
     areaSummary: areas.map((area) => ({ area: area.area, count: area.count })),
-    statusSummary: STATUS_ORDER.filter((status) => statusCounts[status]).map((status) => ({
-      status,
-      count: statusCounts[status],
-    })),
+    statusSummary: orderedStatusSummary(mergeStatusCounts(areas.map((area) => area.statusCounts))),
     areas,
   };
 }
@@ -63,30 +60,20 @@ function membershipStatus(inClaude, inCodex) {
   return null;
 }
 
-function overlayEntry(merged, entry) {
-  const apply = (names, status) => {
-    for (const name of names ?? []) overlayItem(merged, entry, name, status);
-  };
-  apply(entry.conflicts, "conflict");
-  apply(entry.missingInCodex, "claude-only");
-  apply(entry.missingInClaude, "codex-only");
-  apply(entry.unsupported, "unsupported");
-}
-
-function overlayItem(merged, entry, name, status) {
-  const key = itemKey(entry.scope, entry.area, name);
+function applyOverlay(merged, overlay) {
+  const key = itemKey(overlay.scope, overlay.area, overlay.name);
   const existing = merged.get(key);
   if (existing) {
-    existing.status = status;
+    existing.status = overlay.status;
     return;
   }
   merged.set(key, {
-    area: entry.area,
-    scope: entry.scope,
-    name,
-    status,
-    claudePath: itemHostPath(entry, name, "claude"),
-    codexPath: itemHostPath(entry, name, "codex"),
+    area: overlay.area,
+    scope: overlay.scope,
+    name: overlay.name,
+    status: overlay.status,
+    claudePath: overlay.claudePath ?? "",
+    codexPath: overlay.codexPath ?? "",
   });
 }
 
@@ -108,19 +95,6 @@ function safeDescribe(describe, item) {
   }
 }
 
-function itemHostPath(entry, name, host) {
-  if (entry.area === "agents") {
-    const map = host === "claude" ? entry.claudeAgentPaths : entry.codexAgentPaths;
-    return map?.[name] ?? (host === "claude" ? entry.claudePath : entry.codexPath) ?? "";
-  }
-  if (entry.area === "skills") {
-    const index = host === "claude" ? entry.claudeSkillIndex : entry.codexSkillIndex;
-    const base = index?.[name];
-    if (base) return join(base, name);
-  }
-  return (host === "claude" ? entry.claudePath : entry.codexPath) ?? "";
-}
-
 function buildAreaSection(area) {
   const groups = new Map();
   for (const item of area.items) {
@@ -133,10 +107,12 @@ function buildAreaSection(area) {
     .map((group) => ({ scope: group.scope, items: sortItems(group.items) }))
     .sort((a, b) => a.scope.localeCompare(b.scope));
 
+  const statusCounts = countStatuses(area.items);
   return {
     area: area.area,
     count: area.items.length,
-    statusCounts: countStatuses(area.items),
+    statusCounts,
+    statusSummary: orderedStatusSummary(statusCounts),
     groups: orderedGroups,
   };
 }
@@ -165,18 +141,17 @@ function mergeStatusCounts(list) {
   }, {});
 }
 
+function orderedStatusSummary(counts) {
+  return STATUS_ORDER.filter((status) => counts[status]).map((status) => ({
+    status,
+    count: counts[status],
+  }));
+}
+
 export function renderBoardHtml(model) {
   const areaSummary = model.areaSummary
     .map((entry) => `${escapeHtml(entry.area)} ${entry.count}`)
     .join(" &middot; ");
-  const statusSummary = model.statusSummary
-    .map(
-      (entry) =>
-        `<span class="chip"><span class="dot" style="background:${STATUS_META[entry.status].color}"></span>${escapeHtml(
-          STATUS_META[entry.status].label
-        )} ${entry.count}</span>`
-    )
-    .join("");
 
   return [
     "<!doctype html>",
@@ -184,19 +159,19 @@ export function renderBoardHtml(model) {
     "<head>",
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    `<title>${escapeHtml(model.title)}</title>`,
+    `<title>${escapeHtml(BOARD_TITLE)}</title>`,
     `<style>${boardStyles()}</style>`,
     "</head>",
     "<body>",
     "<header>",
-    `<h1>${escapeHtml(model.title)}</h1>`,
+    `<h1>${escapeHtml(BOARD_TITLE)}</h1>`,
     `<div class="meta">${escapeHtml(model.direction.from)} &rarr; ${escapeHtml(
       model.direction.to
     )} &middot; scopes: ${escapeHtml(model.scopes.join(", ") || "none")} &middot; ${escapeHtml(
       model.generatedAt
     )}</div>`,
     `<div class="meta areas">${areaSummary || "no items"}</div>`,
-    `<div class="chips">${statusSummary}</div>`,
+    `<div class="chips">${renderStatusChips(model.statusSummary, true)}</div>`,
     '<input id="filter" type="text" placeholder="Filter by name or description…" autocomplete="off">',
     "</header>",
     '<main id="board">',
@@ -209,17 +184,23 @@ export function renderBoardHtml(model) {
   ].join("\n");
 }
 
-function renderAreaSection(area) {
-  const chips = STATUS_ORDER.filter((status) => area.statusCounts[status])
-    .map(
-      (status) =>
-        `<span class="chip"><span class="dot" style="background:${STATUS_META[status].color}"></span>${area.statusCounts[status]}</span>`
-    )
+function renderStatusChips(statusSummary, withLabel) {
+  return statusSummary
+    .map((entry) => {
+      const meta = STATUS_META[entry.status];
+      const text = withLabel ? `${escapeHtml(meta.label)} ${entry.count}` : `${entry.count}`;
+      return `<span class="chip"><span class="dot" style="background:${meta.color}"></span>${text}</span>`;
+    })
     .join("");
+}
 
+function renderAreaSection(area) {
   return [
     '<section class="area">',
-    `<h2>${escapeHtml(area.area)} <span class="count">${area.count}</span> <span class="chips">${chips}</span></h2>`,
+    `<h2>${escapeHtml(area.area)} <span class="count">${area.count}</span> <span class="chips">${renderStatusChips(
+      area.statusSummary,
+      false
+    )}</span></h2>`,
     area.groups.map(renderGroup).join(""),
     "</section>",
   ].join("");
@@ -302,12 +283,12 @@ function boardScript() {
     "var filter=document.getElementById('filter');",
     "var items=Array.prototype.slice.call(document.querySelectorAll('.item'));",
     "filter.addEventListener('input',function(){",
-    "var q=filter.value.trim().toLowerCase();",
-    "for(var i=0;i<items.length;i++){",
-    "var hit=!q||items[i].getAttribute('data-search').indexOf(q)!==-1;",
-    "items[i].style.display=hit?'':'none';}});",
-    "document.getElementById('board').addEventListener('click',function(e){",
-    "var row=e.target.closest('.row');if(!row)return;",
+    "var query=filter.value.trim().toLowerCase();",
+    "for(var idx=0;idx<items.length;idx++){",
+    "var hit=!query||items[idx].getAttribute('data-search').indexOf(query)!==-1;",
+    "items[idx].style.display=hit?'':'none';}});",
+    "document.getElementById('board').addEventListener('click',function(event){",
+    "var row=event.target.closest('.row');if(!row)return;",
     "var detail=row.nextElementSibling;if(detail)detail.hidden=!detail.hidden;});",
   ].join("");
 }

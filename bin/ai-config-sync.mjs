@@ -29,6 +29,7 @@ const STATE_SCHEMA_VERSION = 1;
 const BACKUP_RETENTION = 30;
 const LEDGER_RETENTION = 300;
 const STATUS_DETAILS_RETENTION = 100;
+const BOARD_RETENTION = 100;
 const CODEX_PLUGIN_NAME = "ai-config-sync-manager";
 const CODEX_MARKETPLACE_NAME = "local-plugins";
 const runtimePackage = readRuntimePackage();
@@ -110,7 +111,11 @@ async function main() {
       const { scopes, selectors, open } = parseBoard(argv);
       const report = createStatusReport(scopes, selectors);
       const inventory = buildBoardInventory(scopes, selectors);
-      const model = buildBoardModel(report, inventory, describeBoardItem);
+      const overlays = normalizeBoardOverlays(report.entries);
+      const model = buildBoardModel(
+        { inventory, overlays, direction: report.direction, scopes },
+        readBoardItemDescription
+      );
       const boardPath = writeBoardFile(renderBoardHtml(model));
       console.log(`Board written to: ${boardPath}`);
       if (open) openInBrowser(boardPath);
@@ -335,24 +340,62 @@ function firstPath(pathList, fallback) {
   return Array.isArray(pathList) ? (pathList[0] ?? fallback) : (pathList ?? fallback);
 }
 
-function describeBoardItem(item) {
-  try {
-    if (item.area === "agents") {
-      if (item.claudePath && existsSync(item.claudePath))
-        return parseClaudeAgentFile(item.claudePath).frontmatter?.description ?? "";
-      if (item.codexPath && existsSync(item.codexPath))
-        return parseCodexAgentFile(item.codexPath).description ?? "";
-    }
-    if (item.area === "skills") {
-      const useClaude = item.claudePath && existsSync(item.claudePath);
-      const dir = useClaude ? item.claudePath : item.codexPath;
-      if (!dir) return "";
-      const manifest = findSkillManifest(dir, useClaude ? "claude" : "codex");
-      if (!manifest) return "";
-      return parseClaudeAgentText(readFileSync(manifest, "utf8")).frontmatter?.description ?? "";
-    }
-  } catch {
-    return "";
+// Translates status-engine entries into the board's display vocabulary and resolves
+// per-item file paths so bin/util/board-html.mjs stays a pure renderer (no engine
+// field-name or path-layout knowledge). Engine reports absence as missing-in-<host>;
+// board names the host that HAS the item (missingInCodex -> claude-only).
+function normalizeBoardOverlays(entries = []) {
+  const overlays = [];
+  for (const entry of entries) {
+    pushBoardOverlays(overlays, entry, entry.conflicts, "conflict");
+    pushBoardOverlays(overlays, entry, entry.missingInCodex, "claude-only");
+    pushBoardOverlays(overlays, entry, entry.missingInClaude, "codex-only");
+    pushBoardOverlays(overlays, entry, entry.unsupported, "unsupported");
+  }
+  return overlays;
+}
+
+function pushBoardOverlays(overlays, entry, names, status) {
+  for (const name of names ?? []) {
+    overlays.push({
+      scope: entry.scope,
+      area: entry.area,
+      name,
+      status,
+      claudePath: entryItemPath(entry, name, "claude"),
+      codexPath: entryItemPath(entry, name, "codex"),
+    });
+  }
+}
+
+function entryItemPath(entry, name, host) {
+  const isClaude = host === "claude";
+  if (entry.area === "agents") {
+    const map = isClaude ? entry.claudeAgentPaths : entry.codexAgentPaths;
+    return map?.[name] ?? (isClaude ? entry.claudePath : entry.codexPath) ?? "";
+  }
+  if (entry.area === "skills") {
+    const index = isClaude ? entry.claudeSkillIndex : entry.codexSkillIndex;
+    const base = index?.[name];
+    if (base) return join(base, name);
+  }
+  return (isClaude ? entry.claudePath : entry.codexPath) ?? "";
+}
+
+function readBoardItemDescription(item) {
+  if (item.area === "agents") {
+    if (item.claudePath && existsSync(item.claudePath))
+      return parseClaudeAgentFile(item.claudePath).frontmatter?.description ?? "";
+    if (item.codexPath && existsSync(item.codexPath))
+      return parseCodexAgentFile(item.codexPath).description ?? "";
+  }
+  if (item.area === "skills") {
+    const useClaude = item.claudePath && existsSync(item.claudePath);
+    const dir = useClaude ? item.claudePath : item.codexPath;
+    if (!dir) return "";
+    const manifest = findSkillManifest(dir, useClaude ? "claude" : "codex");
+    if (!manifest) return "";
+    return parseClaudeAgentText(readFileSync(manifest, "utf8")).frontmatter?.description ?? "";
   }
   return "";
 }
@@ -360,7 +403,8 @@ function describeBoardItem(item) {
 function writeBoardFile(html) {
   const boardPath = boardFilePath();
   mkdirSync(dirname(boardPath), { recursive: true });
-  pruneRetention(dirname(boardPath), STATUS_DETAILS_RETENTION - 1);
+  // Prune to one below the cap so the board about to be written stays within retention.
+  pruneRetention(dirname(boardPath), BOARD_RETENTION - 1);
   writeFileSync(boardPath, html);
   return boardPath;
 }

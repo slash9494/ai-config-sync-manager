@@ -3,8 +3,14 @@ import assert from "node:assert/strict";
 
 import { buildBoardModel, renderBoardHtml } from "../bin/util/board-html.mjs";
 
-function emptyReport(entries = []) {
-  return { direction: { from: "claude", to: "codex" }, scopes: ["project"], entries };
+function boardInput(overrides) {
+  return {
+    inventory: [],
+    overlays: [],
+    direction: { from: "claude", to: "codex" },
+    scopes: ["project"],
+    ...overrides,
+  };
 }
 
 function inventoryItem(overrides) {
@@ -20,6 +26,10 @@ function inventoryItem(overrides) {
   };
 }
 
+function overlayItem(overrides) {
+  return { scope: "project", area: "skills", name: "alpha", status: "conflict", ...overrides };
+}
+
 function allItems(model) {
   return model.areas.flatMap((area) => area.groups.flatMap((group) => group.items));
 }
@@ -28,60 +38,75 @@ function findItem(model, name) {
   return allItems(model).find((item) => item.name === name);
 }
 
-test("buildBoardModel marks an item present on both hosts without a diff as in-sync", () => {
-  const model = buildBoardModel(emptyReport(), [inventoryItem({ name: "alpha" })]);
+test("buildBoardModel marks an item present on both hosts without an overlay as in-sync", () => {
+  const model = buildBoardModel(boardInput({ inventory: [inventoryItem({ name: "alpha" })] }));
   assert.equal(findItem(model, "alpha").status, "in-sync");
 });
 
 test("buildBoardModel maps single-host inventory membership to host-only status", () => {
-  const model = buildBoardModel(emptyReport(), [
-    inventoryItem({ name: "claudeside", inClaude: true, inCodex: false }),
-    inventoryItem({ name: "codexside", inClaude: false, inCodex: true }),
-  ]);
+  const model = buildBoardModel(
+    boardInput({
+      inventory: [
+        inventoryItem({ name: "claudeside", inClaude: true, inCodex: false }),
+        inventoryItem({ name: "codexside", inClaude: false, inCodex: true }),
+      ],
+    })
+  );
   assert.equal(findItem(model, "claudeside").status, "claude-only");
   assert.equal(findItem(model, "codexside").status, "codex-only");
 });
 
-test("buildBoardModel overlays a report conflict onto an in-sync inventory item", () => {
+test("buildBoardModel overlays a conflict onto an in-sync inventory item", () => {
   const model = buildBoardModel(
-    emptyReport([{ scope: "project", area: "skills", conflicts: ["alpha"] }]),
-    [inventoryItem({ name: "alpha" })]
+    boardInput({
+      inventory: [inventoryItem({ name: "alpha" })],
+      overlays: [overlayItem({ name: "alpha", status: "conflict" })],
+    })
   );
   assert.equal(findItem(model, "alpha").status, "conflict");
 });
 
-test("buildBoardModel overlays missingInCodex onto an in-sync item as claude-only", () => {
+test("buildBoardModel overlays a host-only status onto an in-sync item", () => {
   const model = buildBoardModel(
-    emptyReport([{ scope: "project", area: "skills", missingInCodex: ["alpha"] }]),
-    [inventoryItem({ name: "alpha" })]
+    boardInput({
+      inventory: [inventoryItem({ name: "alpha" })],
+      overlays: [overlayItem({ name: "alpha", status: "claude-only" })],
+    })
   );
   assert.equal(findItem(model, "alpha").status, "claude-only");
 });
 
-test("buildBoardModel overlays an unsupported entry onto an inventory item", () => {
+test("buildBoardModel overlays an unsupported status onto an inventory item", () => {
   const model = buildBoardModel(
-    emptyReport([{ scope: "project", area: "hooks", unsupported: ["watchdog"] }]),
-    [inventoryItem({ area: "hooks", name: "watchdog" })]
+    boardInput({
+      inventory: [inventoryItem({ area: "hooks", name: "watchdog" })],
+      overlays: [overlayItem({ area: "hooks", name: "watchdog", status: "unsupported" })],
+    })
   );
   assert.equal(findItem(model, "watchdog").status, "unsupported");
 });
 
-test("buildBoardModel adds a diff-only entry that is absent from the inventory", () => {
+test("buildBoardModel adds an overlay item that is absent from the inventory", () => {
   const model = buildBoardModel(
-    emptyReport([{ scope: "project", area: "hooks", missingInClaude: ["orphan"] }]),
-    []
+    boardInput({
+      overlays: [overlayItem({ area: "hooks", name: "orphan", status: "codex-only" })],
+    })
   );
   const orphan = findItem(model, "orphan");
-  assert.ok(orphan, "diff-only item should be added to the model");
+  assert.ok(orphan, "overlay-only item should be added to the model");
   assert.equal(orphan.status, "codex-only");
 });
 
 test("buildBoardModel aggregates counts per area and per status", () => {
-  const model = buildBoardModel(emptyReport(), [
-    inventoryItem({ area: "skills", name: "alpha", inClaude: true, inCodex: true }),
-    inventoryItem({ area: "skills", name: "beta", inClaude: true, inCodex: false }),
-    inventoryItem({ area: "agents", name: "gamma", inClaude: false, inCodex: true }),
-  ]);
+  const model = buildBoardModel(
+    boardInput({
+      inventory: [
+        inventoryItem({ area: "skills", name: "alpha", inClaude: true, inCodex: true }),
+        inventoryItem({ area: "skills", name: "beta", inClaude: true, inCodex: false }),
+        inventoryItem({ area: "agents", name: "gamma", inClaude: false, inCodex: true }),
+      ],
+    })
+  );
 
   assert.deepEqual(model.areaSummary, [
     { area: "skills", count: 2 },
@@ -95,17 +120,23 @@ test("buildBoardModel aggregates counts per area and per status", () => {
 });
 
 test("renderBoardHtml includes every item name", () => {
-  const model = buildBoardModel(emptyReport(), [
-    inventoryItem({ name: "alpha" }),
-    inventoryItem({ name: "beta", inClaude: true, inCodex: false }),
-  ]);
+  const model = buildBoardModel(
+    boardInput({
+      inventory: [
+        inventoryItem({ name: "alpha" }),
+        inventoryItem({ name: "beta", inClaude: true, inCodex: false }),
+      ],
+    })
+  );
   const html = renderBoardHtml(model);
   assert.match(html, /alpha/);
   assert.match(html, /beta/);
 });
 
 test("renderBoardHtml embeds no external references", () => {
-  const html = renderBoardHtml(buildBoardModel(emptyReport(), [inventoryItem({ name: "alpha" })]));
+  const html = renderBoardHtml(
+    buildBoardModel(boardInput({ inventory: [inventoryItem({ name: "alpha" })] }))
+  );
   assert.doesNotMatch(html, /<script\s+src=/);
   assert.doesNotMatch(html, /<link\b/);
   assert.doesNotMatch(html, /(?:href|src)="https?:/);
@@ -113,8 +144,7 @@ test("renderBoardHtml embeds no external references", () => {
 
 test("renderBoardHtml escapes markup and quotes in names and descriptions", () => {
   const model = buildBoardModel(
-    emptyReport(),
-    [inventoryItem({ name: 'a"b<c>' })],
+    boardInput({ inventory: [inventoryItem({ name: 'a"b<c>' })] }),
     () => 'desc <i>"x"'
   );
   const html = renderBoardHtml(model);
@@ -125,7 +155,9 @@ test("renderBoardHtml escapes markup and quotes in names and descriptions", () =
 });
 
 test("renderBoardHtml renders a status color marker and label per status", () => {
-  const html = renderBoardHtml(buildBoardModel(emptyReport(), [inventoryItem({ name: "alpha" })]));
+  const html = renderBoardHtml(
+    buildBoardModel(boardInput({ inventory: [inventoryItem({ name: "alpha" })] }))
+  );
   assert.match(html, /#22c55e/);
   assert.match(html, /In sync/);
   assert.match(html, /class="item"/);
