@@ -7208,3 +7208,70 @@ test("paraphrase --apply uses text-search fallback when counterpart line offset 
   assert.equal(after.paraphraseOverrides.active.length, 1);
   assert.equal(after.paraphraseOverrides.stale.length, 0);
 });
+
+function boardWrittenPath(output) {
+  const match = output.match(/^Board written to: (.+)$/m);
+  assert.ok(match, "board output should include the written path");
+  return match[1];
+}
+
+test("board writes a self-contained HTML file listing planted skills", () => {
+  const fixture = createFixture();
+  for (const host of [".claude/skills", ".agents/skills"]) {
+    mkdirSync(join(fixture.project, host, "alpha"), { recursive: true });
+    writeFileSync(join(fixture.project, host, "alpha/SKILL.md"), "# alpha\n");
+  }
+  mkdirSync(join(fixture.project, ".claude/skills/beta"), { recursive: true });
+  writeFileSync(join(fixture.project, ".claude/skills/beta/SKILL.md"), "# beta\n");
+
+  const output = runCli(fixture, ["board", "--scope", "project"]);
+  const boardPath = boardWrittenPath(output);
+  assert.ok(existsSync(boardPath), "board file should exist on disk");
+
+  const html = readFileSync(boardPath, "utf8");
+  assert.match(html, /alpha/);
+  assert.match(html, /beta/);
+});
+
+test("board marks a skill present on only one host as claude-only", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/skills/beta"), { recursive: true });
+  writeFileSync(join(fixture.project, ".claude/skills/beta/SKILL.md"), "# beta\n");
+
+  const html = readFileSync(
+    boardWrittenPath(runCli(fixture, ["board", "--scope", "project"])),
+    "utf8"
+  );
+  assert.match(html, /beta/);
+  assert.match(html, /Claude only/);
+});
+
+test("board --include agents omits skills from the inventory", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/skills/gamma"), { recursive: true });
+  writeFileSync(join(fixture.project, ".claude/skills/gamma/SKILL.md"), "# gamma\n");
+  mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".claude/agents/myagent.md"),
+    "---\nname: myagent\ndescription: planted agent\n---\nbody\n"
+  );
+
+  const html = readFileSync(
+    boardWrittenPath(runCli(fixture, ["board", "--scope", "project", "--include", "agents"])),
+    "utf8"
+  );
+  assert.match(html, /myagent/);
+  assert.doesNotMatch(html, /gamma/);
+});
+
+test("board rejects an unknown option", () => {
+  const fixture = createFixture();
+  assert.throws(
+    () => runCli(fixture, ["board", "--bogus"]),
+    (error) => {
+      assert.equal(error.status, 1);
+      assert.match(error.stderr, /Unknown option for board/);
+      return true;
+    }
+  );
+});

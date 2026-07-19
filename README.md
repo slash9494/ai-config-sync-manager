@@ -97,6 +97,8 @@ ai-config-sync sync --scope global --apply
 ai-config-sync sync --include instructions,skills:code-writer --exclude mcp --dry-run
 ai-config-sync sync --from claude --to codex
 ai-config-sync sync --from codex --to claude
+ai-config-sync board
+ai-config-sync board --scope global --open
 ai-config-sync reference
 ai-config-sync paraphrase
 ```
@@ -108,6 +110,7 @@ ai-config-sync paraphrase
 | `status --json` | Machine-readable diff |
 | `sync --dry-run` | Preview the merge plan without writing |
 | `sync --apply` | Apply the plan, snapshot to `.backups/` |
+| `board` | Render an HTML inventory board of both hosts, colored by sync status |
 | `reference` | Emit / persist a self-generated markdown reference |
 | `paraphrase` | Line-level override archive for instruction wording |
 
@@ -146,6 +149,24 @@ ai-config-sync connect
 
 ```bash
 ai-config-sync status --scope project --tree --include skills:code-writer
+```
+
+### `board`
+
+Renders a self-contained HTML inventory board — every skill, agent, hook, and MCP server on both hosts in one dense view, colored by sync status: green = in sync, red = conflict, gray = one host only, amber = unsupported. Type in the filter box to narrow rows; click a row for the full description, paths, and status detail. The file is written to `~/.ai-config-sync-manager/board/` with no external requests, so it works offline.
+
+<img src="https://raw.githubusercontent.com/slash9494/ai-config-sync-manager/main/assets/board_preview.png" alt="ai-config-sync board — inventory of agents, skills, mcp, and hooks colored by sync status" width="100%" />
+
+| Flag | Description |
+| --- | --- |
+| `--scope global\|project\|all` | Limit scope (default: `all` = global + project) |
+| `--include area[:item][,...]` | Include selector — see [Selector syntax](#selector-syntax) |
+| `--exclude area[:item][,...]` | Exclude selector — see [Selector syntax](#selector-syntax) |
+| `--open` | Open the generated board in the default browser |
+| `-h`, `--help` | Show board help |
+
+```bash
+ai-config-sync board --scope global --open
 ```
 
 ### `sync`

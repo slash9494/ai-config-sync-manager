@@ -19,6 +19,7 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { serializeYamlScalar } from "./util/yaml-scalar.mjs";
 import { hashPath } from "./util/ledger-hash.mjs";
+import { buildBoardModel, renderBoardHtml } from "./util/board-html.mjs";
 
 const hosts = new Set(["claude", "codex"]);
 const [command = "help", ...argv] = process.argv.slice(2);
@@ -102,6 +103,18 @@ async function main() {
         options.planJson ? JSON.stringify(formatPlanOutput(plans), null, 2) : renderSyncPlans(plans)
       );
     }
+  } else if (command === "board") {
+    if (isHelp(argv)) {
+      printBoardHelp();
+    } else {
+      const { scopes, selectors, open } = parseBoard(argv);
+      const report = createStatusReport(scopes, selectors);
+      const inventory = buildBoardInventory(scopes, selectors);
+      const model = buildBoardModel(report, inventory, describeBoardItem);
+      const boardPath = writeBoardFile(renderBoardHtml(model));
+      console.log(`Board written to: ${boardPath}`);
+      if (open) openInBrowser(boardPath);
+    }
   } else if (command === "reference") {
     if (isHelp(argv)) {
       printReferenceHelp();
@@ -176,6 +189,193 @@ function parseStatus(argv) {
   }
 
   return { format, json, scopes, selectors };
+}
+
+function parseBoard(argv) {
+  let scopes = ["global", "project"];
+  let open = false;
+  const selectors = emptySelectors();
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === "--open") {
+      open = true;
+    } else if (token === "--scope") {
+      scopes = parseScopes(argv[index + 1], true);
+      index += 1;
+    } else if (token === "--include" || token === "--exclude") {
+      addSelectors(selectors, token, argv[index + 1]);
+      index += 1;
+    } else {
+      throw new Error(`Unknown option for board: ${token}`);
+    }
+  }
+
+  return { scopes, selectors, open };
+}
+
+function buildBoardInventory(scopes, selectors = emptySelectors()) {
+  const items = [];
+  for (const scope of scopes) {
+    const paths = scope === "global" ? globalPaths() : projectPaths(process.cwd());
+    collectSkillInventory(items, scope, paths);
+    collectAgentInventory(items, scope, paths);
+    collectSettingsInventory(items, scope, "hooks", paths);
+    collectMcpInventory(items, scope, paths);
+  }
+  return filterBoardInventory(items, selectors);
+}
+
+function filterBoardInventory(items, selectors) {
+  return items.filter(
+    (item) =>
+      inventoryItemIncluded(item, selectors.include) &&
+      !inventorySelectorHit(item, selectors.exclude)
+  );
+}
+
+function inventoryItemIncluded(item, include) {
+  if (include.length === 0) return true;
+  return inventorySelectorHit(item, include);
+}
+
+function inventorySelectorHit(item, selectors) {
+  return selectors.some(
+    (selector) =>
+      selector.area === item.area &&
+      (!selector.item || itemMatchesSelector(item.name, selector.item))
+  );
+}
+
+function collectSkillInventory(items, scope, paths) {
+  const claudeIndex = enumerateSkillIndex(paths.claude.skillsPaths ?? [paths.claude.skills]);
+  const codexIndex = enumerateSkillIndex(paths.codex.skillsPaths ?? [paths.codex.skills]);
+  const symlinkNames = new Set([
+    ...enumerateSkillSymlinkIndex(paths.claude.skillsPaths ?? [paths.claude.skills]).keys(),
+    ...enumerateSkillSymlinkIndex(paths.codex.skillsPaths ?? [paths.codex.skills]).keys(),
+  ]);
+
+  for (const name of uniqueStrings([...claudeIndex.keys(), ...codexIndex.keys()])) {
+    if (symlinkNames.has(name)) continue;
+    const claudeBase = claudeIndex.get(name);
+    const codexBase = codexIndex.get(name);
+    items.push({
+      area: "skills",
+      scope,
+      name,
+      inClaude: claudeBase !== undefined,
+      inCodex: codexBase !== undefined,
+      claudePath: claudeBase ? join(claudeBase, name) : "",
+      codexPath: codexBase ? join(codexBase, name) : "",
+    });
+  }
+}
+
+function collectAgentInventory(items, scope, paths) {
+  const claudeAgents = new Map(
+    enumerateClaudeAgents(paths.claude.agents).map((agent) => [agent.name, agent.path])
+  );
+  const codexAgents = new Map(
+    enumerateCodexAgents(paths.codex.agents).map((agent) => [agent.name, agent.path])
+  );
+
+  for (const name of uniqueStrings([...claudeAgents.keys(), ...codexAgents.keys()])) {
+    items.push({
+      area: "agents",
+      scope,
+      name,
+      inClaude: claudeAgents.has(name),
+      inCodex: codexAgents.has(name),
+      claudePath: claudeAgents.get(name) ?? "",
+      codexPath: codexAgents.get(name) ?? "",
+    });
+  }
+}
+
+function collectSettingsInventory(items, scope, area, paths) {
+  if (!paths.claude.settings || !paths.codex.settings) return;
+  const claudeItems = new Set(settingsItems("claude", area, paths.claude.settings));
+  const codexItems = new Set(settingsItems("codex", area, paths.codex.settings));
+
+  for (const name of uniqueStrings([...claudeItems, ...codexItems])) {
+    items.push({
+      area,
+      scope,
+      name,
+      inClaude: claudeItems.has(name),
+      inCodex: codexItems.has(name),
+      claudePath: claudeItems.has(name) ? paths.claude.settings : "",
+      codexPath: codexItems.has(name) ? paths.codex.settings : "",
+    });
+  }
+}
+
+function collectMcpInventory(items, scope, paths) {
+  const claudeServers = new Set(
+    Object.keys(readClaudeMcpServers(paths.claude.mcpPaths ?? paths.claude.mcp))
+  );
+  const codexServers = new Set(
+    Object.keys(readCodexMcpServers(paths.codex.mcpPaths ?? paths.codex.mcp))
+  );
+
+  for (const name of uniqueStrings([...claudeServers, ...codexServers])) {
+    items.push({
+      area: "mcp",
+      scope,
+      name,
+      inClaude: claudeServers.has(name),
+      inCodex: codexServers.has(name),
+      claudePath: claudeServers.has(name) ? firstPath(paths.claude.mcpPaths, paths.claude.mcp) : "",
+      codexPath: codexServers.has(name) ? firstPath(paths.codex.mcpPaths, paths.codex.mcp) : "",
+    });
+  }
+}
+
+function firstPath(pathList, fallback) {
+  return Array.isArray(pathList) ? (pathList[0] ?? fallback) : (pathList ?? fallback);
+}
+
+function describeBoardItem(item) {
+  try {
+    if (item.area === "agents") {
+      if (item.claudePath && existsSync(item.claudePath))
+        return parseClaudeAgentFile(item.claudePath).frontmatter?.description ?? "";
+      if (item.codexPath && existsSync(item.codexPath))
+        return parseCodexAgentFile(item.codexPath).description ?? "";
+    }
+    if (item.area === "skills") {
+      const useClaude = item.claudePath && existsSync(item.claudePath);
+      const dir = useClaude ? item.claudePath : item.codexPath;
+      if (!dir) return "";
+      const manifest = findSkillManifest(dir, useClaude ? "claude" : "codex");
+      if (!manifest) return "";
+      return parseClaudeAgentText(readFileSync(manifest, "utf8")).frontmatter?.description ?? "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function writeBoardFile(html) {
+  const boardPath = boardFilePath();
+  mkdirSync(dirname(boardPath), { recursive: true });
+  pruneRetention(dirname(boardPath), STATUS_DETAILS_RETENTION - 1);
+  writeFileSync(boardPath, html);
+  return boardPath;
+}
+
+function boardFilePath() {
+  const stamp = new Date().toISOString().replaceAll(":", "-");
+  return `${home}/.ai-config-sync-manager/board/${stamp}.html`;
+}
+
+function openInBrowser(path) {
+  try {
+    execSync(`${process.platform === "darwin" ? "open" : "xdg-open"} ${shellQuote(path)}`);
+  } catch {
+    // Path already printed; opening is best-effort.
+  }
 }
 
 function defaultSyncDirection() {
@@ -8066,6 +8266,9 @@ function printHelp() {
   ai-config-sync status --tree
   ai-config-sync status --scope global|project|all
   ai-config-sync status --include skills:foo,mcp:notion --exclude permissions:Bash
+  ai-config-sync board
+  ai-config-sync board --help
+  ai-config-sync board --scope global|project|all --open
   ai-config-sync sync --dry-run
   ai-config-sync sync --help
   ai-config-sync sync --plan-json
@@ -8112,6 +8315,24 @@ Options:
 Examples:
   ai-config-sync status --scope project --tree
   ai-config-sync status --include skills:foo,mcp:notion --exclude permissions:Bash`);
+}
+
+function printBoardHelp() {
+  console.log(`Usage:
+  ai-config-sync board [options]
+
+Renders a self-contained HTML inventory board of skills, agents, hooks, and other config areas, colored by sync status (in-sync, conflict, one-host-only, unsupported).
+
+Options:
+  --scope global|project|all     Limit board scope
+  --include area[:item][,...]    Include only selected areas or items
+  --exclude area[:item][,...]    Exclude selected areas or items
+  --open                         Open the generated board in the default browser
+  -h, --help                     Show board help
+
+Examples:
+  ai-config-sync board
+  ai-config-sync board --scope global --open`);
 }
 
 function printSyncHelp() {
