@@ -1,5 +1,11 @@
 # Ai-config-sync-manager
 
+## v0.1.8 (unreleased)
+
+### 🚀 Features
+
+- **board**: add an HTML inventory board of both hosts colored by sync status (#35, #36). A new read-only `board` subcommand renders every skill, agent, hook, and MCP server from Claude and Codex into a single self-contained HTML page (no external requests, zero runtime deps), reusing the existing `status` engine for diff data. Items split into per-area tabs and are colored by sync state — green in-sync, red conflict, blue Claude-only, purple Codex-only, amber unsupported — with agents grouped under their harness (the `agents/` subfolder). A filter box narrows by name, description, or harness. The board opens in the default browser by default (`--no-open` to skip). The renderer is a pure module (`bin/util/board-html.mjs`); the CLI normalizes the engine's diff shape into an overlay DTO so the renderer never reaches into engine internals. Overlays are restricted to the four inventoried areas and honor status-ignore rules, so the board never contradicts `status`; the browser opener is a detached fire-and-forget `spawn` (with a no-op error listener) so a missing or wedged opener never blocks or crashes the CLI.
+
 ## v0.1.7 (2026-07-12)
 
 ### 🛠 Chore
