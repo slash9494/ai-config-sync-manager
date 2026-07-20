@@ -416,7 +416,15 @@ function boardFilePath() {
 
 function openInBrowser(path) {
   try {
-    execSync(`${process.platform === "darwin" ? "open" : "xdg-open"} ${shellQuote(path)}`);
+    const opener =
+      process.platform === "darwin"
+        ? "open"
+        : process.platform === "win32"
+          ? 'start ""'
+          : "xdg-open";
+    execSync(`${opener} ${shellQuote(path)}`, {
+      shell: process.platform === "win32" ? "cmd.exe" : undefined,
+    });
   } catch {
     // Path already printed; opening is best-effort.
   }
