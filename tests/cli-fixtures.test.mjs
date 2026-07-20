@@ -7266,6 +7266,96 @@ test("board --include agents omits skills from the inventory", () => {
   assert.doesNotMatch(html, /gamma/);
 });
 
+test("board omits permissions and plugins entries that fall outside its inventory areas", () => {
+  const fixture = createFixture();
+  writeJson(join(fixture.project, ".claude/settings.json"), {
+    permissions: { allow: ["WebSearch"] },
+  });
+  mkdirSync(join(fixture.project, ".codex"), { recursive: true });
+  writeFileSync(join(fixture.project, ".codex/config.toml"), "");
+
+  const html = readFileSync(
+    boardWrittenPath(runCli(fixture, ["board", "--scope", "project", "--no-open"])),
+    "utf8"
+  );
+  assert.doesNotMatch(html, /data-area="permissions"/);
+  assert.doesNotMatch(html, /data-area="plugins"/);
+  assert.doesNotMatch(html, /WebSearch/);
+});
+
+test("board drops a status-ignored skill instead of showing it as in-sync", () => {
+  const fixture = createFixture();
+  writeSkillManifest(
+    join(fixture.project, ".claude/skills/hushed"),
+    "claude",
+    "# hushed\nclaude\n"
+  );
+  writeSkillManifest(join(fixture.project, ".agents/skills/hushed"), "codex", "# hushed\ncodex\n");
+  writeJson(join(fixture.project, ".ai-config-sync-manager/status-ignore.json"), {
+    version: 1,
+    exclude: [{ scope: "project", area: "skills", item: "hushed" }],
+  });
+
+  const html = readFileSync(
+    boardWrittenPath(runCli(fixture, ["board", "--scope", "project", "--no-open"])),
+    "utf8"
+  );
+  assert.doesNotMatch(html, /hushed/);
+});
+
+test("board honors a path-form skills ignore rule targeting the SKILL.md file", () => {
+  const fixture = createFixture();
+  writeSkillManifest(
+    join(fixture.project, ".claude/skills/pathhush"),
+    "claude",
+    "# pathhush\nclaude\n"
+  );
+  writeSkillManifest(
+    join(fixture.project, ".agents/skills/pathhush"),
+    "codex",
+    "# pathhush\ncodex\n"
+  );
+  writeJson(join(fixture.project, ".ai-config-sync-manager/status-ignore.json"), {
+    version: 1,
+    exclude: [".claude/skills/pathhush/SKILL.md"],
+  });
+
+  const html = readFileSync(
+    boardWrittenPath(runCli(fixture, ["board", "--scope", "project", "--no-open"])),
+    "utf8"
+  );
+  assert.doesNotMatch(html, /pathhush/);
+});
+
+test("board file name carries a pid suffix so same-millisecond runs cannot collide", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/skills/solo"), { recursive: true });
+  writeFileSync(join(fixture.project, ".claude/skills/solo/SKILL.md"), "# solo\n");
+
+  const boardPath = boardWrittenPath(runCli(fixture, ["board", "--scope", "project", "--no-open"]));
+  assert.match(boardPath, /Z-\d+\.html$/);
+});
+
+test("openInBrowser launches a detached, unref'd child with an async error handler so a stalled or missing opener cannot hang or crash the CLI", () => {
+  const source = readFileSync(cliPath, "utf8");
+  const start = source.indexOf("function openInBrowser");
+  const fn = source.slice(start, source.indexOf("\n}\n", start));
+  assert.match(fn, /spawn\(/);
+  assert.match(fn, /detached: true/);
+  assert.match(fn, /\.unref\(\)/);
+  assert.match(fn, /\.on\("error"/);
+  assert.doesNotMatch(fn, /execSync/);
+});
+
+test("board default open exits cleanly when the opener binary is absent from PATH", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/skills/solo"), { recursive: true });
+  writeFileSync(join(fixture.project, ".claude/skills/solo/SKILL.md"), "# solo\n");
+
+  const output = runCli(fixture, ["board", "--scope", "project"], undefined, { PATH: "" });
+  assert.match(output, /^Board written to: /m);
+});
+
 test("board rejects an unknown option", () => {
   const fixture = createFixture();
   assert.throws(
