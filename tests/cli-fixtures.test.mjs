@@ -7224,7 +7224,7 @@ test("board writes a self-contained HTML file listing planted skills", () => {
   mkdirSync(join(fixture.project, ".claude/skills/beta"), { recursive: true });
   writeFileSync(join(fixture.project, ".claude/skills/beta/SKILL.md"), "# beta\n");
 
-  const output = runCli(fixture, ["board", "--scope", "project"]);
+  const output = runCli(fixture, ["board", "--scope", "project", "--no-open"]);
   const boardPath = boardWrittenPath(output);
   assert.ok(existsSync(boardPath), "board file should exist on disk");
 
@@ -7239,7 +7239,7 @@ test("board marks a skill present on only one host as claude-only", () => {
   writeFileSync(join(fixture.project, ".claude/skills/beta/SKILL.md"), "# beta\n");
 
   const html = readFileSync(
-    boardWrittenPath(runCli(fixture, ["board", "--scope", "project"])),
+    boardWrittenPath(runCli(fixture, ["board", "--scope", "project", "--no-open"])),
     "utf8"
   );
   assert.match(html, /beta/);
@@ -7257,7 +7257,9 @@ test("board --include agents omits skills from the inventory", () => {
   );
 
   const html = readFileSync(
-    boardWrittenPath(runCli(fixture, ["board", "--scope", "project", "--include", "agents"])),
+    boardWrittenPath(
+      runCli(fixture, ["board", "--scope", "project", "--include", "agents", "--no-open"])
+    ),
     "utf8"
   );
   assert.match(html, /myagent/);

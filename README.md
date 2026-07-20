@@ -98,7 +98,7 @@ ai-config-sync sync --include instructions,skills:code-writer --exclude mcp --dr
 ai-config-sync sync --from claude --to codex
 ai-config-sync sync --from codex --to claude
 ai-config-sync board
-ai-config-sync board --scope global --open
+ai-config-sync board --scope global --no-open
 ai-config-sync reference
 ai-config-sync paraphrase
 ```
@@ -153,7 +153,7 @@ ai-config-sync status --scope project --tree --include skills:code-writer
 
 ### `board`
 
-Renders a self-contained HTML inventory board — every skill, agent, hook, and MCP server on both hosts in one dense view, colored by sync status: green = in sync, red = conflict, gray = one host only, amber = unsupported. Type in the filter box to narrow rows; click a row for the full description, paths, and status detail. The file is written to `~/.ai-config-sync-manager/board/` with no external requests, so it works offline.
+Renders a self-contained HTML inventory board — every skill, agent, hook, and MCP server on both hosts, split into per-area tabs, colored by sync status: green = in sync, red = conflict, blue = Claude only, purple = Codex only, amber = unsupported. Agents are grouped under their harness (subfolder) where they have one. Type in the filter box to narrow rows; click a row for the full description, paths, and status detail. The file is written to `~/.ai-config-sync-manager/board/` with no external requests, so it works offline, and opens in your default browser automatically (pass `--no-open` to skip).
 
 <img src="https://raw.githubusercontent.com/slash9494/ai-config-sync-manager/main/assets/board_preview.png" alt="ai-config-sync board — inventory of agents, skills, mcp, and hooks colored by sync status" width="100%" />
 
@@ -162,11 +162,11 @@ Renders a self-contained HTML inventory board — every skill, agent, hook, and 
 | `--scope global\|project\|all` | Limit scope (default: `all` = global + project) |
 | `--include area[:item][,...]` | Include selector — see [Selector syntax](#selector-syntax) |
 | `--exclude area[:item][,...]` | Exclude selector — see [Selector syntax](#selector-syntax) |
-| `--open` | Open the generated board in the default browser |
+| `--no-open` | Only write the file; do not open a browser |
 | `-h`, `--help` | Show board help |
 
 ```bash
-ai-config-sync board --scope global --open
+ai-config-sync board --scope global
 ```
 
 ### `sync`

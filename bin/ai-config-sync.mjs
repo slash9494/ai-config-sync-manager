@@ -198,13 +198,15 @@ function parseStatus(argv) {
 
 function parseBoard(argv) {
   let scopes = ["global", "project"];
-  let open = false;
+  let open = true;
   const selectors = emptySelectors();
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === "--open") {
       open = true;
+    } else if (token === "--no-open") {
+      open = false;
     } else if (token === "--scope") {
       scopes = parseScopes(argv[index + 1], true);
       index += 1;
@@ -8384,12 +8386,14 @@ Options:
   --scope global|project|all     Limit board scope
   --include area[:item][,...]    Include only selected areas or items
   --exclude area[:item][,...]    Exclude selected areas or items
-  --open                         Open the generated board in the default browser
+  --no-open                      Only write the file; do not open a browser
   -h, --help                     Show board help
+
+The board opens in the default browser by default; pass --no-open to skip it.
 
 Examples:
   ai-config-sync board
-  ai-config-sync board --scope global --open`);
+  ai-config-sync board --scope global --no-open`);
 }
 
 function printSyncHelp() {
