@@ -4,8 +4,8 @@ const BOARD_TITLE = "AI Config Sync Board";
 const STATUS_META = {
   conflict: { label: "Conflict", color: "#ef4444" },
   unsupported: { label: "Unsupported", color: "#f59e0b" },
-  "claude-only": { label: "Claude only", color: "#9ca3af" },
-  "codex-only": { label: "Codex only", color: "#9ca3af" },
+  "claude-only": { label: "Claude only", color: "#3b82f6" },
+  "codex-only": { label: "Codex only", color: "#a855f7" },
   "in-sync": { label: "In sync", color: "#22c55e" },
 };
 
@@ -27,6 +27,7 @@ export function buildBoardModel(
       status,
       claudePath: item.claudePath ?? "",
       codexPath: item.codexPath ?? "",
+      harness: item.harness ?? null,
     });
   }
 
@@ -74,6 +75,7 @@ function applyOverlay(merged, overlay) {
     status: overlay.status,
     claudePath: overlay.claudePath ?? "",
     codexPath: overlay.codexPath ?? "",
+    harness: null,
   });
 }
 
@@ -103,8 +105,9 @@ function buildAreaSection(area) {
     groups.set(item.scope, group);
   }
 
+  const groupByHarness = area.area === "agents";
   const orderedGroups = [...groups.values()]
-    .map((group) => ({ scope: group.scope, items: sortItems(group.items) }))
+    .map((group) => buildScopeGroup(group, groupByHarness))
     .sort((a, b) => a.scope.localeCompare(b.scope));
 
   const statusCounts = countStatuses(area.items);
@@ -123,6 +126,32 @@ function sortItems(items) {
       STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
       a.name.localeCompare(b.name)
   );
+}
+
+function buildScopeGroup(group, groupByHarness) {
+  if (!groupByHarness) return { scope: group.scope, items: sortItems(group.items) };
+  return { scope: group.scope, harnessGroups: buildHarnessGroups(group.items) };
+}
+
+function buildHarnessGroups(items) {
+  const byHarness = new Map();
+  for (const item of items) {
+    const harness = item.harness ?? null;
+    const bucket = byHarness.get(harness) ?? { harness, items: [] };
+    bucket.items.push(item);
+    byHarness.set(harness, bucket);
+  }
+  return [...byHarness.values()]
+    .map((bucket) => ({ harness: bucket.harness, items: sortItems(bucket.items) }))
+    .sort(compareHarnessGroups);
+}
+
+// Ungrouped (root) agents render first, then named harnesses alphabetically.
+function compareHarnessGroups(a, b) {
+  if (a.harness === b.harness) return 0;
+  if (a.harness === null) return -1;
+  if (b.harness === null) return 1;
+  return a.harness.localeCompare(b.harness);
 }
 
 function countStatuses(items) {
@@ -172,10 +201,11 @@ export function renderBoardHtml(model) {
     )}</div>`,
     `<div class="meta areas">${areaSummary || "no items"}</div>`,
     `<div class="chips">${renderStatusChips(model.statusSummary, true)}</div>`,
+    `<div class="tabs">${renderAreaTabs(model.areaSummary)}</div>`,
     '<input id="filter" type="text" placeholder="Filter by name or description…" autocomplete="off">',
     "</header>",
     '<main id="board">',
-    model.areas.map(renderAreaSection).join(""),
+    model.areas.map((area, index) => renderAreaSection(area, index === 0)).join(""),
     "</main>",
     `<script>${boardScript()}</script>`,
     "</body>",
@@ -194,9 +224,20 @@ function renderStatusChips(statusSummary, withLabel) {
     .join("");
 }
 
-function renderAreaSection(area) {
+function renderAreaTabs(areaSummary) {
+  return areaSummary
+    .map(
+      (entry, index) =>
+        `<button type="button" class="tab${index === 0 ? " active" : ""}" data-tab="${escapeHtml(
+          entry.area
+        )}">${escapeHtml(entry.area)} <span class="tab-count">${entry.count}</span></button>`
+    )
+    .join("");
+}
+
+function renderAreaSection(area, active) {
   return [
-    '<section class="area">',
+    `<section class="area" data-area="${escapeHtml(area.area)}"${active ? "" : " hidden"}>`,
     `<h2>${escapeHtml(area.area)} <span class="count">${area.count}</span> <span class="chips">${renderStatusChips(
       area.statusSummary,
       false
@@ -207,16 +248,24 @@ function renderAreaSection(area) {
 }
 
 function renderGroup(group) {
-  return [
-    `<div class="group"><div class="scope-label">${escapeHtml(group.scope)}</div>`,
-    group.items.map(renderItem).join(""),
-    "</div>",
-  ].join("");
+  const body = group.harnessGroups
+    ? group.harnessGroups.map(renderHarnessGroup).join("")
+    : group.items.map(renderItem).join("");
+  return `<div class="group"><div class="scope-label">${escapeHtml(group.scope)}</div>${body}</div>`;
+}
+
+function renderHarnessGroup(harnessGroup) {
+  const label = harnessGroup.harness
+    ? `<div class="harness-label">${escapeHtml(harnessGroup.harness)}</div>`
+    : "";
+  return `${label}${harnessGroup.items.map(renderItem).join("")}`;
 }
 
 function renderItem(item) {
   const meta = STATUS_META[item.status];
-  const search = escapeHtml(`${item.name} ${item.description}`.toLowerCase());
+  const search = escapeHtml(
+    `${item.name} ${item.description} ${item.harness ?? ""}`.trim().toLowerCase()
+  );
   return [
     `<div class="item" data-search="${search}">`,
     '<div class="row">',
@@ -255,6 +304,11 @@ function boardStyles() {
     ".meta.areas{margin-top:4px;color:#cbd5e1}",
     ".chips{display:inline-flex;flex-wrap:wrap;gap:8px;margin-top:8px}",
     ".chip{display:inline-flex;align-items:center;gap:6px;background:#111827;border:1px solid #1f2937;border-radius:999px;padding:2px 10px;font-size:12px;color:#cbd5e1}",
+    ".tabs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}",
+    ".tab{display:inline-flex;align-items:center;gap:6px;background:#111827;border:1px solid #1f2937;border-radius:6px;padding:4px 12px;color:#9ca3af;font-size:13px;cursor:pointer;text-transform:capitalize}",
+    ".tab:hover{color:#e5e7eb}",
+    ".tab.active{background:#1f2937;color:#e5e7eb;border-color:#2563eb}",
+    ".tab-count{color:#6b7280;font-size:11px}",
     "#filter{margin-top:12px;width:100%;padding:8px 12px;background:#111827;border:1px solid #1f2937;border-radius:8px;color:#e5e7eb;font-size:14px}",
     "#filter:focus{outline:none;border-color:#2563eb}",
     "main{padding:12px 20px 40px}",
@@ -264,6 +318,7 @@ function boardStyles() {
     "h2 .chips{margin-top:0}",
     ".group{margin:0 0 10px}",
     ".scope-label{color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:6px 0 2px}",
+    ".harness-label{color:#818cf8;font-size:11px;font-weight:600;letter-spacing:.03em;margin:6px 0 2px 10px}",
     ".item{border-bottom:1px solid #111827}",
     ".row{display:flex;align-items:center;gap:10px;padding:4px 6px;cursor:pointer;border-radius:6px}",
     ".row:hover{background:#111827}",
@@ -282,11 +337,18 @@ function boardScript() {
   return [
     "var filter=document.getElementById('filter');",
     "var items=Array.prototype.slice.call(document.querySelectorAll('.item'));",
-    "filter.addEventListener('input',function(){",
+    "var tabs=Array.prototype.slice.call(document.querySelectorAll('.tab'));",
+    "var sections=Array.prototype.slice.call(document.querySelectorAll('.area'));",
+    "function applyFilter(){",
     "var query=filter.value.trim().toLowerCase();",
     "for(var idx=0;idx<items.length;idx++){",
     "var hit=!query||items[idx].getAttribute('data-search').indexOf(query)!==-1;",
-    "items[idx].style.display=hit?'':'none';}});",
+    "items[idx].style.display=hit?'':'none';}}",
+    "function activateTab(area){",
+    "for(var s=0;s<sections.length;s++){sections[s].hidden=sections[s].getAttribute('data-area')!==area;}",
+    "for(var t=0;t<tabs.length;t++){tabs[t].classList.toggle('active',tabs[t].getAttribute('data-tab')===area);}}",
+    "filter.addEventListener('input',applyFilter);",
+    "tabs.forEach(function(tab){tab.addEventListener('click',function(){activateTab(tab.getAttribute('data-tab'));});});",
     "document.getElementById('board').addEventListener('click',function(event){",
     "var row=event.target.closest('.row');if(!row)return;",
     "var detail=row.nextElementSibling;if(detail)detail.hidden=!detail.hidden;});",

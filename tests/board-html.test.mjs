@@ -30,8 +30,12 @@ function overlayItem(overrides) {
   return { scope: "project", area: "skills", name: "alpha", status: "conflict", ...overrides };
 }
 
+function groupItems(group) {
+  return group.harnessGroups ? group.harnessGroups.flatMap((sub) => sub.items) : group.items;
+}
+
 function allItems(model) {
-  return model.areas.flatMap((area) => area.groups.flatMap((group) => group.items));
+  return model.areas.flatMap((area) => area.groups.flatMap(groupItems));
 }
 
 function findItem(model, name) {
@@ -162,4 +166,88 @@ test("renderBoardHtml renders a status color marker and label per status", () =>
   assert.match(html, /In sync/);
   assert.match(html, /class="item"/);
   assert.match(html, /class="dot"/);
+});
+
+test("renderBoardHtml colors claude-only and codex-only distinctly", () => {
+  const html = renderBoardHtml(
+    buildBoardModel(
+      boardInput({
+        inventory: [
+          inventoryItem({ name: "claudeside", inClaude: true, inCodex: false }),
+          inventoryItem({ name: "codexside", inClaude: false, inCodex: true }),
+        ],
+      })
+    )
+  );
+  assert.match(html, /#3b82f6/);
+  assert.match(html, /#a855f7/);
+});
+
+test("renderBoardHtml renders an area tab and section marker per area", () => {
+  const model = buildBoardModel(
+    boardInput({
+      inventory: [
+        inventoryItem({ area: "skills", name: "alpha" }),
+        inventoryItem({ area: "agents", name: "beta" }),
+      ],
+    })
+  );
+  const html = renderBoardHtml(model);
+  assert.match(html, /class="tab[^"]*"[^>]*data-tab="skills"/);
+  assert.match(html, /data-tab="agents"/);
+  assert.match(html, /class="area"[^>]*data-area="skills"/);
+  assert.match(html, /class="area"[^>]*data-area="agents"/);
+});
+
+test("buildBoardModel groups agents by harness within a scope, ungrouped first", () => {
+  const model = buildBoardModel(
+    boardInput({
+      inventory: [
+        inventoryItem({ area: "agents", name: "rooted", harness: null }),
+        inventoryItem({ area: "agents", name: "nested", harness: "refactor" }),
+      ],
+    })
+  );
+  const agents = model.areas.find((area) => area.area === "agents");
+  const [group] = agents.groups;
+  assert.ok(group.harnessGroups, "agents scope groups carry harness subgroups");
+  assert.equal(group.harnessGroups[0].harness, null);
+  assert.equal(group.harnessGroups[0].items[0].name, "rooted");
+  assert.equal(group.harnessGroups[1].harness, "refactor");
+  assert.equal(group.harnessGroups[1].items[0].name, "nested");
+});
+
+test("buildBoardModel keeps non-agent areas as flat item groups", () => {
+  const model = buildBoardModel(
+    boardInput({ inventory: [inventoryItem({ area: "skills", name: "alpha" })] })
+  );
+  const skills = model.areas.find((area) => area.area === "skills");
+  assert.ok(skills.groups[0].items, "skills scope groups stay flat");
+  assert.equal(skills.groups[0].harnessGroups, undefined);
+});
+
+test("renderBoardHtml includes the harness folder name in an agent's filter search text", () => {
+  const html = renderBoardHtml(
+    buildBoardModel(
+      boardInput({
+        inventory: [inventoryItem({ area: "agents", name: "nested", harness: "browser-audit" })],
+      })
+    )
+  );
+  assert.match(html, /data-search="[^"]*browser-audit[^"]*"/);
+});
+
+test("renderBoardHtml labels a harness subgroup and omits a label for ungrouped agents", () => {
+  const html = renderBoardHtml(
+    buildBoardModel(
+      boardInput({
+        inventory: [
+          inventoryItem({ area: "agents", name: "rooted", harness: null }),
+          inventoryItem({ area: "agents", name: "nested", harness: "refactor" }),
+        ],
+      })
+    )
+  );
+  assert.match(html, /class="harness-label">refactor</);
+  assert.doesNotMatch(html, /class="harness-label">rooted</);
 });

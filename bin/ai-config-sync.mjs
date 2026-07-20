@@ -278,21 +278,26 @@ function collectSkillInventory(items, scope, paths) {
 
 function collectAgentInventory(items, scope, paths) {
   const claudeAgents = new Map(
-    enumerateClaudeAgents(paths.claude.agents).map((agent) => [agent.name, agent.path])
+    enumerateClaudeAgents(paths.claude.agents).map((agent) => [
+      agent.name,
+      { path: agent.path, harness: agent.group },
+    ])
   );
   const codexAgents = new Map(
     enumerateCodexAgents(paths.codex.agents).map((agent) => [agent.name, agent.path])
   );
 
   for (const name of uniqueStrings([...claudeAgents.keys(), ...codexAgents.keys()])) {
+    const claudeAgent = claudeAgents.get(name);
     items.push({
       area: "agents",
       scope,
       name,
       inClaude: claudeAgents.has(name),
       inCodex: codexAgents.has(name),
-      claudePath: claudeAgents.get(name) ?? "",
+      claudePath: claudeAgent?.path ?? "",
       codexPath: codexAgents.get(name) ?? "",
+      harness: claudeAgent?.harness ?? null,
     });
   }
 }
