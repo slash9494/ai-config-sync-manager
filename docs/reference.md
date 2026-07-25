@@ -200,7 +200,9 @@ Model alias rules come from `rules/agents-map.json` `models.tiers` rather than t
 - `balanced-model` — `sonnet` ↔ `gpt-5.6-luna`
 - `small-fast-model` — `haiku` ↔ `gpt-5.4-mini`
 
-The `alias` is what conversion writes. Each tier's `terms` are also accepted as model values, so superseded ids (`gpt-5.6`, `gpt-5.5`, `gpt-5.4`) and vendor-tagged variants (`gpt-5.3-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`) resolve to a tier instead of passing through unmapped. A token may appear in only one tier; an overlay wins because its tiers merge in last.
+The `alias` is what conversion writes. Each tier's `terms` are also accepted as model values, so superseded ids (`gpt-5.6`, `gpt-5.5`, `gpt-5.4`, `gpt-5.2`) and vendor-tagged variants (`gpt-5.3-codex`, `gpt-5.3-codex-spark`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`, `gpt-5.1-codex`, `gpt-5-codex`) resolve to a tier instead of passing through unmapped. A token may appear in only one tier; an overlay wins because its tiers merge in last.
+
+Accepting a spelling also makes it equivalent. A Codex file pinned to `gpt-5.5` and a Claude file on `opus` are the same tier, so `status` reports them in sync and `sync` never rewrites the pin to `gpt-5.6-terra`. That is the trade-off for converting superseded ids at all: a spelling cannot both convert to a tier and conflict with it. Change the pin by hand if you want the canonical id on disk.
 
 ## Paraphrase
 
