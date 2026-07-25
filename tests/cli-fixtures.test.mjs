@@ -1589,6 +1589,59 @@ test("sync applies default terminology mappings to instructions", () => {
   );
 });
 
+// A term used to be replaced anywhere it appeared as a substring, so a model id that merely starts
+// with a mapped one came out truncated: "gpt-5.6-nano" became "opus-nano".
+test("sync leaves a longer model id alone when a mapped term is only its prefix", () => {
+  const fixture = createFixture();
+  writeFileSync(
+    join(fixture.project, "AGENTS.md"),
+    "Pin gpt-5.6-nano for volume and gpt-5.6 for hard work.\n"
+  );
+  writeFileSync(join(fixture.project, "CLAUDE.md"), "old\n");
+
+  runCli(
+    fixture,
+    ["sync", "--scope", "project", "--include", "instructions", "--apply"],
+    undefined,
+    {
+      AI_CONFIG_SYNC_HOST: "codex",
+    }
+  );
+
+  assert.equal(
+    readFileSync(join(fixture.project, "CLAUDE.md"), "utf8"),
+    "Pin gpt-5.6-nano for volume and opus for hard work.\n"
+  );
+});
+
+test("sync leaves an English word alone when a mapped term is only its tail", () => {
+  const fixture = createFixture();
+  writeFileSync(join(fixture.project, "CLAUDE.md"), "An Opusculum is not Opus.\n");
+  writeFileSync(join(fixture.project, "AGENTS.md"), "old\n");
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "instructions", "--apply"]);
+
+  assert.equal(
+    readFileSync(join(fixture.project, "AGENTS.md"), "utf8"),
+    "An Opusculum is not gpt-5.6.\n"
+  );
+});
+
+// The boundary must not swallow ordinary sentence punctuation — a trailing "." that ends a sentence
+// is not a version continuation the way the "." in "5.1" is.
+test("sync still maps a term that ends a sentence", () => {
+  const fixture = createFixture();
+  writeFileSync(join(fixture.project, "CLAUDE.md"), "Reasoning goes to opus4.8(latest).\n");
+  writeFileSync(join(fixture.project, "AGENTS.md"), "old\n");
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "instructions", "--apply"]);
+
+  assert.equal(
+    readFileSync(join(fixture.project, "AGENTS.md"), "utf8"),
+    "Reasoning goes to gpt-5.6.\n"
+  );
+});
+
 test("sync applies host target templates to generic host surfaces", () => {
   const fixture = createFixture();
   writeFileSync(

@@ -3456,10 +3456,18 @@ function applyTermMappings(value, from, to) {
 
   literalReplacements.sort((left, right) => right.source.length - left.source.length);
   return literalReplacements.reduce(
-    (nextText, { source, target }) =>
-      nextText.replace(new RegExp(escapeRegExp(source), "g"), target),
+    (nextText, { source, target }) => nextText.replace(literalTermPattern(source), target),
     working
   );
+}
+
+// A term must not be eaten out of a longer identifier: "gpt-5.3-codex" inside "gpt-5.3-codex-spark",
+// "fable" inside "affable", "Opus 5" inside "Opus 5.1". \b cannot express this — it sits between "6"
+// and "-", so a version-shaped term still matches the head of a longer id. The dot rules are
+// asymmetric on purpose: a dot that continues a version ("5" then ".1") extends the identifier, but
+// a dot ending a sentence ("opus(latest).") does not.
+function literalTermPattern(source) {
+  return new RegExp(`(?<![\\w-]|\\w\\.)${escapeRegExp(source)}(?![\\w-]|\\.\\w)`, "g");
 }
 
 function terminologyRules(data) {
