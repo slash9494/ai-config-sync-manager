@@ -354,71 +354,9 @@ jobs:
               fi
             } >> .upstream-compat/body.md
           fi
-          # Enum drift: enum-bearing keys the runtime hardcodes. Members added/removed AND hardcoded values stale.
-          extract_enum_members() {
-            local file="$1" key="$2"
-            [ -f "$file" ] || return 0
-            jq -r --arg k "$key" '[.properties[$k].oneOf[]?.enum[]?, .properties[$k].enum[]?] | unique | .[]' "$file" 2>/dev/null | sort -u
-          }
-          extract_enum_members_head() {
-            local path="$1" key="$2"
-            git show "HEAD:$path" 2>/dev/null | jq -r --arg k "$key" '[.properties[$k].oneOf[]?.enum[]?, .properties[$k].enum[]?] | unique | .[]' 2>/dev/null | sort -u || true
-          }
-          # Codex enum-bearing keys + the value the runtime hardcodes.
-          codex_enum_watch="snapshots/codex/config-schema.json:sandbox_mode:workspace-write
-          snapshots/codex/config-schema.json:approval_policy:on-request
-          snapshots/codex/config-schema.json:web_search:live"
-          codex_enum_drift=""
-          while IFS=: read -r file key val; do
-            file=$(echo "$file" | sed 's/^ *//')
-            [ -z "${file:-}" ] && continue
-            curr=$(extract_enum_members "$file" "$key")
-            prev=$(extract_enum_members_head "$file" "$key")
-            added=$(comm -23 <(printf '%s\n' "$curr") <(printf '%s\n' "$prev") | sed '/^$/d' | tr '\n' ' ' | sed 's/ *$//' || true)
-            removed=$(comm -13 <(printf '%s\n' "$curr") <(printf '%s\n' "$prev") | sed '/^$/d' | tr '\n' ' ' | sed 's/ *$//' || true)
-            if [ -n "$added" ] || [ -n "$removed" ]; then
-              codex_enum_drift="${codex_enum_drift}- \`${key}\` enum changed"$'\n'
-              [ -n "$added" ] && codex_enum_drift="${codex_enum_drift}  - added: ${added}"$'\n'
-              [ -n "$removed" ] && codex_enum_drift="${codex_enum_drift}  - removed: ${removed}"$'\n'
-            fi
-            if [ -n "$curr" ] && ! printf '%s\n' "$curr" | grep -qx "$val"; then
-              codex_enum_drift="${codex_enum_drift}- **STALE HARDCODED** \`${key} = \"${val}\"\` no longer in schema enum (runtime will write an invalid value)"$'\n'
-            fi
-          done <<< "$codex_enum_watch"
-          # Claude hardcoded hook event names: properties.hooks.properties.<EventName>
-          claude_hook_events_curr=$(jq -r '.properties.hooks.properties // {} | keys[]' snapshots/claude/settings-schema.json 2>/dev/null | sort -u)
-          claude_hook_events_prev=$(git show HEAD:snapshots/claude/settings-schema.json 2>/dev/null | jq -r '.properties.hooks.properties // {} | keys[]' 2>/dev/null | sort -u || true)
-          claude_hook_added=$(comm -23 <(printf '%s\n' "$claude_hook_events_curr") <(printf '%s\n' "$claude_hook_events_prev") | sed '/^$/d' | tr '\n' ' ' | sed 's/ *$//' || true)
-          claude_hook_removed=$(comm -13 <(printf '%s\n' "$claude_hook_events_curr") <(printf '%s\n' "$claude_hook_events_prev") | sed '/^$/d' | tr '\n' ' ' | sed 's/ *$//' || true)
-          claude_enum_drift=""
-          if [ -n "$claude_hook_added" ] || [ -n "$claude_hook_removed" ]; then
-            claude_enum_drift="${claude_enum_drift}- \`hooks\` event names changed"$'\n'
-            [ -n "$claude_hook_added" ] && claude_enum_drift="${claude_enum_drift}  - added: ${claude_hook_added}"$'\n'
-            [ -n "$claude_hook_removed" ] && claude_enum_drift="${claude_enum_drift}  - removed: ${claude_hook_removed}"$'\n'
-          fi
-          for ev in PreToolUse PostToolUse SessionStart UserPromptSubmit; do
-            if [ -n "$claude_hook_events_curr" ] && ! printf '%s\n' "$claude_hook_events_curr" | grep -qx "$ev"; then
-              claude_enum_drift="${claude_enum_drift}- **STALE HARDCODED** hook event \`${ev}\` no longer in \`hooks.properties\` (runtime writes a hook the host will not fire)"$'\n'
-            fi
-          done
-          if [ -n "${claude_enum_drift:-}" ] || [ -n "${codex_enum_drift:-}" ]; then
-            {
-              echo
-              echo "## Compat scan — enum drift on watched keys"
-              echo
-              echo "Enum members on keys the runtime hardcodes. STALE HARDCODED means \`bin/ai-config-sync.mjs\` will emit a value the new schema rejects — runtime fix required, not just a checklist."
-              if [ -n "${claude_enum_drift:-}" ]; then
-                echo
-                echo "### Claude"
-                printf '%s\n' "$claude_enum_drift"
-              fi
-              if [ -n "${codex_enum_drift:-}" ]; then
-                echo
-                echo "### Codex"
-                printf '%s\n' "$codex_enum_drift"
-              fi
-            } >> .upstream-compat/body.md
-          fi
+          # Enum drift on keys the runtime hardcodes. The schema states them as $ref indirections,
+          # so resolving them needs a real walk, not a flat read of the property's own .enum.
+          node scripts/detect-enum-drift.mjs >> .upstream-compat/body.md || true
           # Model tiers live in agents-map.json, never in the settings/config schema — detect from changelog/releases prose.
           node scripts/detect-model-drift.mjs >> .upstream-compat/body.md || true
           # Raw diff goes LAST, capped to the remaining GitHub PR-body budget (hard limit 65536).
