@@ -2931,6 +2931,52 @@ test("agents sync apply removes the pre-colon-flattening file instead of leaving
   assert.match(claudeFile, /New codex content/);
 });
 
+// Two names that differ only in a separator canonicalize to one key, so the index used to keep
+// whichever readdir returned last and copy it over the other agent's body without a word.
+test("agents sync apply refuses a pair of names that resolve to the same agent", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });
+  writeCodexAgent(join(fixture.project, ".codex/agents/colon.toml"), {
+    name: "docs:writer",
+    description: "Colon agent",
+    developer_instructions: "COLON BODY",
+  });
+  writeCodexAgent(join(fixture.project, ".codex/agents/dash.toml"), {
+    name: "docs-writer",
+    description: "Dash agent",
+    developer_instructions: "DASH BODY",
+  });
+
+  const output = runCli(
+    fixture,
+    ["sync", "--scope", "project", "--include", "agents", "--apply"],
+    undefined,
+    { AI_CONFIG_SYNC_HOST: "codex" }
+  );
+
+  assert.match(
+    output,
+    /agent name collision: .*colon\.toml and .*dash\.toml both resolve to docs-writer/
+  );
+  assert.equal(existsSync(join(fixture.project, ".claude/agents/docs-writer.md")), false);
+});
+
+test("agents sync apply names a Codex agent after its file when the toml omits one", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });
+  writeCodexAgent(join(fixture.project, ".codex/agents/nameless.toml"), {
+    description: "Example agent",
+    developer_instructions: "Real codex content",
+  });
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "agents", "--apply"], undefined, {
+    AI_CONFIG_SYNC_HOST: "codex",
+  });
+
+  const claudeFile = readFileSync(join(fixture.project, ".claude/agents/nameless.md"), "utf8");
+  assert.match(claudeFile, /^name: nameless$/m);
+});
+
 test("agents sync apply preserves Codex metadata-only fields when overwriting", () => {
   const fixture = createFixture();
   writeClaudeAgent(

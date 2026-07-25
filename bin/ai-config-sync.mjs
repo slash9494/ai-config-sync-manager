@@ -4291,27 +4291,52 @@ function applyCopyMissingSkills(plan, operation) {
   }
 }
 
+// Names differing only in a separator ("docs:writer" and "docs-writer") canonicalize to one key, so
+// a plain Map would keep whichever readdir returned last and copy it over the other agent's body.
+function indexAgentsByName(agents) {
+  const index = new Map();
+  const collisions = new Map();
+  for (const agent of agents) {
+    const first = index.get(agent.name);
+    if (first) collisions.set(agent.name, [first.path, agent.path]);
+    else index.set(agent.name, agent);
+  }
+  return { index, collisions };
+}
+
 function applyMergeAgents(plan, operation) {
   mkdirSync(operation.targetPath, { recursive: true });
   const overwrite = new Set(operation.overwriteAgentNames ?? []);
-  const sourceClaudeIndex =
+  const source = indexAgentsByName(
     operation.from === "claude"
-      ? new Map(enumerateClaudeAgents(operation.sourcePath).map((agent) => [agent.name, agent]))
-      : null;
-  const sourceCodexIndex =
-    operation.from === "codex"
-      ? new Map(enumerateCodexAgents(operation.sourcePath).map((agent) => [agent.name, agent]))
-      : null;
+      ? enumerateClaudeAgents(operation.sourcePath)
+      : enumerateCodexAgents(operation.sourcePath)
+  );
+  const sourceClaudeIndex = operation.from === "claude" ? source.index : null;
+  const sourceCodexIndex = operation.from === "codex" ? source.index : null;
   const existingClaudeIndex =
     operation.to === "claude"
-      ? new Map(enumerateClaudeAgents(operation.targetPath).map((agent) => [agent.name, agent]))
+      ? indexAgentsByName(enumerateClaudeAgents(operation.targetPath)).index
       : null;
   const existingCodexIndex =
     operation.to === "codex"
-      ? new Map(enumerateCodexAgents(operation.targetPath).map((agent) => [agent.name, agent]))
+      ? indexAgentsByName(enumerateCodexAgents(operation.targetPath)).index
       : null;
 
-  for (const agentName of operation.agentNames ?? []) {
+  for (const agentName of new Set(operation.agentNames ?? [])) {
+    const collision = source.collisions.get(agentName);
+    if (collision) {
+      const message = `agent name collision: ${collision.join(" and ")} both resolve to ${agentName}`;
+      plan.results.push({ status: "skipped", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: agentName,
+        action: operation.action,
+        status: "skipped",
+        message,
+      });
+      continue;
+    }
     if (operation.to === "codex") {
       const sourceAgent = sourceClaudeIndex?.get(agentName);
       if (!sourceAgent) {
@@ -4409,6 +4434,7 @@ function applyMergeAgents(plan, operation) {
       : { frontmatter: {}, body: "" };
     const claude = mapAgentToClaude(codexParsed, {
       preserveClaude: existingClaude.frontmatter,
+      fallbackName: agentName.split("/").pop(),
       callArchive: plan.callArchive,
     });
     mkdirSync(dirname(targetPath), { recursive: true });
@@ -4418,8 +4444,20 @@ function applyMergeAgents(plan, operation) {
     writeFileSync(targetPath, serializeClaudeAgentFile(claude.frontmatter, claude.body));
     // A name whose canonical form changed (":" is now flattened) lands at a new path; leaving the
     // old file behind would enumerate to the same canonical name and never stop reporting a diff.
-    if (existingAgent && existingAgent.path !== targetPath) {
-      rmSync(existingAgent.path, { force: true });
+    const replacedPath =
+      existingAgent && existingAgent.path !== targetPath ? existingAgent.path : null;
+    if (replacedPath) {
+      rmSync(replacedPath, { force: true });
+      recordLedger(plan, {
+        area: operation.area,
+        item: agentName,
+        action: "delete-items",
+        status: "applied",
+        target: replacedPath,
+        beforeHash,
+        backupPath: backupPathTaken,
+        message: `removed superseded agent path ${replacedPath}`,
+      });
     }
     const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
     plan.results.push({ status: "applied", message });
@@ -6787,8 +6825,9 @@ function canonicalAgentName(rawName, fallbackStem) {
 // Claude keeps "/" in an agent name (harness grouping) but has rejected ":" since CLI 2.1.218,
 // where it is reserved for plugin namespacing — so this is deliberately narrower than the flat
 // file-name form canonicalAgentName produces.
-function claudeSafeAgentName(rawName) {
-  return typeof rawName === "string" ? rawName.trim().replace(/:/g, "-") : "";
+function claudeSafeAgentName(rawName, fallbackStem) {
+  const candidate = typeof rawName === "string" ? rawName.trim() : "";
+  return (candidate || fallbackStem || "").replace(/:/g, "-");
 }
 
 function agentsEquivalent(claudeAgent, codexAgent, entry, item, rules) {
@@ -7000,7 +7039,7 @@ function mapAgentToClaude(codex, options = {}) {
   );
   recordVocabFindings(options.callArchive, lintHostVocab(body, "claude"), "codex", "claude");
   const frontmatter = {
-    name: claudeSafeAgentName(codex.name),
+    name: claudeSafeAgentName(codex.name, options.fallbackName),
     description: codex.description ?? "",
     model: aliases[codex.model] ?? codex.model ?? "",
   };
