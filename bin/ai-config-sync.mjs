@@ -4416,6 +4416,11 @@ function applyMergeAgents(plan, operation) {
     const backupPathTaken = existingAgent ? backupTargetPath(plan, existingAgent.path) : null;
     if (existingAgent) backupPath(plan, existingAgent.path);
     writeFileSync(targetPath, serializeClaudeAgentFile(claude.frontmatter, claude.body));
+    // A name whose canonical form changed (":" is now flattened) lands at a new path; leaving the
+    // old file behind would enumerate to the same canonical name and never stop reporting a diff.
+    if (existingAgent && existingAgent.path !== targetPath) {
+      rmSync(existingAgent.path, { force: true });
+    }
     const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
     plan.results.push({ status: "applied", message });
     recordLedger(plan, {
@@ -6776,7 +6781,14 @@ function enumerateCodexAgents(dir) {
 function canonicalAgentName(rawName, fallbackStem) {
   const candidate = typeof rawName === "string" ? rawName.trim() : "";
   const source = candidate || fallbackStem || "";
-  return source.replace(/\//g, "-");
+  return source.replace(/[/:]/g, "-");
+}
+
+// Claude keeps "/" in an agent name (harness grouping) but has rejected ":" since CLI 2.1.218,
+// where it is reserved for plugin namespacing — so this is deliberately narrower than the flat
+// file-name form canonicalAgentName produces.
+function claudeSafeAgentName(rawName) {
+  return typeof rawName === "string" ? rawName.trim().replace(/:/g, "-") : "";
 }
 
 function agentsEquivalent(claudeAgent, codexAgent, entry, item, rules) {
@@ -6988,7 +7000,7 @@ function mapAgentToClaude(codex, options = {}) {
   );
   recordVocabFindings(options.callArchive, lintHostVocab(body, "claude"), "codex", "claude");
   const frontmatter = {
-    name: codex.name ?? "",
+    name: claudeSafeAgentName(codex.name),
     description: codex.description ?? "",
     model: aliases[codex.model] ?? codex.model ?? "",
   };
