@@ -128,8 +128,11 @@ export function renderSection(claudeFindings, codexFindings) {
 function readSchema(path) {
   try {
     return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return {};
+  } catch (err) {
+    // An empty object would read as "every watched key was removed upstream" and invent a KEY GONE
+    // report out of a local read failure.
+    process.stderr.write(`detect-enum-drift: cannot read ${path}: ${err.message}\n`);
+    return null;
   }
 }
 
@@ -144,11 +147,11 @@ function readSchemaAtHead(path) {
 }
 
 function main() {
-  const codexHead = readSchemaAtHead(CODEX_SCHEMA);
-  const claudeHead = readSchemaAtHead(CLAUDE_SCHEMA);
+  const claude = [readSchema(CLAUDE_SCHEMA), readSchemaAtHead(CLAUDE_SCHEMA)];
+  const codex = [readSchema(CODEX_SCHEMA), readSchemaAtHead(CODEX_SCHEMA)];
   const section = renderSection(
-    claudeHead ? findClaudeHookDrift(readSchema(CLAUDE_SCHEMA), claudeHead) : [],
-    codexHead ? findCodexEnumDrift(readSchema(CODEX_SCHEMA), codexHead) : []
+    claude.every(Boolean) ? findClaudeHookDrift(...claude) : [],
+    codex.every(Boolean) ? findCodexEnumDrift(...codex) : []
   );
   if (section) process.stdout.write(section);
 }
