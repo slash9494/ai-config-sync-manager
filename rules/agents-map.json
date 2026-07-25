@@ -22,17 +22,34 @@
     }
   },
   "models": {
-    "description": "Single source of truth for model mapping. `alias` is the bare frontmatter token used by agent-frontmatter mapping. `terms` is the ordered synonym list for free-text terminology mapping (first term is the canonical replacement target).",
+    "description": "Single source of truth for model mapping. `alias` is the canonical token written into converted frontmatter and prose. `terms` are additional accepted spellings of the same tier — every one is also a recognized frontmatter model value, which is how retired ids and vendor-tagged variants (gpt-5.3-codex, gpt-5.1-codex-max) still convert instead of passing through unmapped. Tiers are ordered strongest first; on a duplicate token the earlier tier wins.",
     "tiers": [
+      {
+        "id": "mythos-class-model",
+        "claude": {
+          "alias": "fable",
+          "terms": ["fable(latest)", "Claude Fable 5", "Fable 5"]
+        },
+        "codex": {
+          "alias": "gpt-5.6-sol",
+          "terms": ["gpt-5.6", "GPT-5.6 Sol", "GPT-5.6-Sol"]
+        }
+      },
       {
         "id": "latest-frontier-model",
         "claude": {
           "alias": "opus",
-          "terms": ["opus4.8(latest)", "opus 4.8 latest", "Claude Opus 4.8", "Opus 4.8", "Opus"]
+          "terms": ["opus(latest)", "Claude Opus 5", "Opus 5", "Opus"]
         },
         "codex": {
-          "alias": "gpt-5.6",
-          "terms": ["gpt5.6(latest)", "gpt-5.6 latest", "GPT-5.6", "GPT 5.6"]
+          "alias": "gpt-5.6-terra",
+          "terms": [
+            "gpt-5.5",
+            "gpt-5.3-codex",
+            "gpt-5.1-codex-max",
+            "GPT-5.6 Terra",
+            "GPT-5.6-Terra"
+          ]
         }
       },
       {
@@ -42,19 +59,19 @@
           "terms": ["sonnet(latest)", "Claude Sonnet 5", "Claude Sonnet", "Sonnet 5", "Sonnet"]
         },
         "codex": {
-          "alias": "gpt-5.4",
-          "terms": ["GPT-5.4"]
+          "alias": "gpt-5.6-luna",
+          "terms": ["gpt-5.4", "gpt-5.1-codex-mini", "GPT-5.6 Luna", "GPT-5.6-Luna", "GPT-5.4"]
         }
       },
       {
         "id": "small-fast-model",
         "claude": {
           "alias": "haiku",
-          "terms": ["haiku(latest)", "Claude Haiku", "Haiku"]
+          "terms": ["haiku(latest)", "Claude Haiku 4.5", "Claude Haiku", "Haiku 4.5", "Haiku"]
         },
         "codex": {
           "alias": "gpt-5.4-mini",
-          "terms": ["GPT-5.4-Mini"]
+          "terms": ["gpt-5.4-nano", "GPT-5.4-Mini"]
         }
       }
     ]

@@ -6776,7 +6776,8 @@ function enumerateCodexAgents(dir) {
 function canonicalAgentName(rawName, fallbackStem) {
   const candidate = typeof rawName === "string" ? rawName.trim() : "";
   const source = candidate || fallbackStem || "";
-  return source.replace(/\//g, "-");
+  // Claude rejects ":" in agent names since CLI 2.1.218 — it is reserved for plugin namespacing.
+  return source.replace(/[/:]/g, "-");
 }
 
 function agentsEquivalent(claudeAgent, codexAgent, entry, item, rules) {
@@ -6988,7 +6989,8 @@ function mapAgentToClaude(codex, options = {}) {
   );
   recordVocabFindings(options.callArchive, lintHostVocab(body, "claude"), "codex", "claude");
   const frontmatter = {
-    name: codex.name ?? "",
+    // Same canonicalization the file name gets — a raw Codex name can carry characters Claude rejects.
+    name: canonicalAgentName(codex.name, options.fallbackName),
     description: codex.description ?? "",
     model: aliases[codex.model] ?? codex.model ?? "",
   };
@@ -7062,15 +7064,14 @@ function modelTiers() {
 function modelAliasMap(from, to) {
   const aliases = {};
   for (const tier of modelTiers()) {
-    const sourceAlias = tier?.[from]?.alias;
     const targetAlias = tier?.[to]?.alias;
-    if (
-      typeof sourceAlias === "string" &&
-      sourceAlias &&
-      typeof targetAlias === "string" &&
-      targetAlias
-    ) {
-      aliases[sourceAlias] = targetAlias;
+    if (typeof targetAlias !== "string" || !targetAlias) continue;
+    const sourceTerms = Array.isArray(tier?.[from]?.terms) ? tier[from].terms : [];
+    // terms carry retired ids and vendor-tagged variants, so they map too; tiers run strongest
+    // first and the earlier one keeps any token two tiers happen to share.
+    for (const token of [tier?.[from]?.alias, ...sourceTerms]) {
+      if (typeof token !== "string" || !token || token in aliases) continue;
+      aliases[token] = targetAlias;
     }
   }
   return aliases;

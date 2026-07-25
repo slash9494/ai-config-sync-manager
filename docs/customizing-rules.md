@@ -298,8 +298,8 @@ Manages agent field mappings and model tier aliases. Use this when you want to a
           "terms": ["sonnet(latest)", "Claude Sonnet", "Sonnet", "standard model"]
         },
         "codex": {
-          "alias": "gpt-5.4",
-          "terms": ["GPT-5.4", "standard model"]
+          "alias": "gpt-5.6-luna",
+          "terms": ["GPT-5.6 Luna", "standard model"]
         }
       }
     ]
@@ -307,7 +307,7 @@ Manages agent field mappings and model tier aliases. Use this when you want to a
 }
 ```
 
-The `latest-frontier-model` and `small-fast-model` tiers and the `fields` array are kept as the bundle ships them.
+The `mythos-class-model`, `latest-frontier-model`, and `small-fast-model` tiers and the `fields` array are kept as the bundle ships them.
 
 **Recipe: add a new model tier**
 
