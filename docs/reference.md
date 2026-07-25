@@ -195,9 +195,12 @@ Hook, MCP, and web access vocabulary used in text instructions.
 
 Model alias rules come from `rules/agents-map.json` `models.tiers` rather than the terminology map.
 
-- `latest-frontier-model` — `opus` ↔ `gpt-5.5`
-- `balanced-model` — `sonnet` ↔ `gpt-5.4`
+- `mythos-class-model` — `fable` ↔ `gpt-5.6-sol`
+- `latest-frontier-model` — `opus` ↔ `gpt-5.6-terra`
+- `balanced-model` — `sonnet` ↔ `gpt-5.6-luna`
 - `small-fast-model` — `haiku` ↔ `gpt-5.4-mini`
+
+The `alias` is what conversion writes. Each tier's `terms` are also accepted as model values, so superseded ids (`gpt-5.6`, `gpt-5.5`, `gpt-5.4`) and vendor-tagged variants (`gpt-5.3-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex-mini`) resolve to a tier instead of passing through unmapped. A token may appear in only one tier; an overlay wins because its tiers merge in last.
 
 ## Paraphrase
 

@@ -7131,15 +7131,13 @@ function modelTiers() {
 function modelAliasMap(from, to) {
   const aliases = {};
   for (const tier of modelTiers()) {
-    const sourceAlias = tier?.[from]?.alias;
     const targetAlias = tier?.[to]?.alias;
-    if (
-      typeof sourceAlias === "string" &&
-      sourceAlias &&
-      typeof targetAlias === "string" &&
-      targetAlias
-    ) {
-      aliases[sourceAlias] = targetAlias;
+    if (typeof targetAlias !== "string" || !targetAlias) continue;
+    const sourceTerms = Array.isArray(tier?.[from]?.terms) ? tier[from].terms : [];
+    // terms carry superseded ids and vendor-tagged variants, so a frontmatter model written in any
+    // accepted spelling still converts. Later tiers win, which is how an overlay reclaims a token.
+    for (const token of [tier?.[from]?.alias, ...sourceTerms]) {
+      if (typeof token === "string" && token) aliases[token] = targetAlias;
     }
   }
   return aliases;

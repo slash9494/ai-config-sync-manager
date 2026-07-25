@@ -46,8 +46,21 @@ test("stale tier surfaces when Opus bumps past the recorded version", () => {
   assert.match(drift[0].note, /terms/);
 });
 
-test("Fable is intentionally excluded from detection", () => {
-  assert.deepEqual(findModelDrift("Meet Claude Fable 5, a creative-writing model.", TIERS), []);
+// Fable was stopworded as a product name. Fable 5 shipped as a real tier, and the stopword meant
+// every changelog mention of it was dropped instead of reported — which is how the missing tier
+// stayed invisible through several drift reviews.
+test("Fable surfaces as drift while it is missing from the tiers", () => {
+  const drift = findModelDrift("Meet Claude Fable 5, a Mythos-class model.", TIERS);
+  assert.equal(drift.length, 1);
+  assert.equal(drift[0].raw, "Claude Fable 5");
+});
+
+test("Fable stays silent once a tier claims it", () => {
+  const tiers = [
+    { id: "mythos-class-model", claude: { alias: "fable", terms: ["Claude Fable 5", "Fable 5"] } },
+    ...TIERS,
+  ];
+  assert.deepEqual(findModelDrift("Meet Claude Fable 5, a Mythos-class model.", tiers), []);
 });
 
 test("hyphenated model ids are extracted", () => {
