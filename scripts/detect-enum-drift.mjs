@@ -45,16 +45,50 @@ function walk(schema, node, visit, hops = 0, seen = new Set()) {
   }
   const ref = node.$ref;
   if (typeof ref !== "string" || seen.has(ref)) return;
-  seen.add(ref);
-  walk(schema, definitionFor(schema, ref), visit, hops + 1, seen);
+  walk(schema, definitionFor(schema, ref), visit, hops + 1, new Set(seen).add(ref));
+}
+
+function intersect(left, right) {
+  return new Set([...left].filter((member) => right.has(member)));
+}
+
+// Returns null when the node says nothing about allowed values, which is what separates "this key
+// is not an enum" from "it is an enum with no members left". `allOf` narrows and `oneOf`/`anyOf`
+// widen, so treating them alike would read a narrowed key as unchanged — the exact false negative
+// this guard exists to end.
+function memberConstraint(schema, node, hops = 0, seen = new Set()) {
+  if (!node || typeof node !== "object" || hops > MAX_REF_HOPS) return null;
+  const constraints = [];
+  if (Array.isArray(node.enum)) constraints.push(new Set(node.enum));
+  for (const key of ["oneOf", "anyOf"]) {
+    const branches = (Array.isArray(node[key]) ? node[key] : [])
+      .map((child) => memberConstraint(schema, child, hops, seen))
+      .filter(Boolean);
+    if (branches.length > 0) {
+      constraints.push(new Set(branches.flatMap((branch) => [...branch])));
+    }
+  }
+  for (const child of Array.isArray(node.allOf) ? node.allOf : []) {
+    const branch = memberConstraint(schema, child, hops, seen);
+    if (branch) constraints.push(branch);
+  }
+  const ref = node.$ref;
+  if (typeof ref === "string" && !seen.has(ref)) {
+    const target = memberConstraint(
+      schema,
+      definitionFor(schema, ref),
+      hops + 1,
+      new Set(seen).add(ref)
+    );
+    if (target) constraints.push(target);
+  }
+  if (constraints.length === 0) return null;
+  return constraints.reduce(intersect);
 }
 
 export function resolveEnumMembers(schema, key) {
-  const members = new Set();
-  walk(schema, schema?.properties?.[key], (node) => {
-    for (const value of Array.isArray(node.enum) ? node.enum : []) members.add(value);
-  });
-  return [...members].sort();
+  const constraint = memberConstraint(schema, schema?.properties?.[key]);
+  return constraint ? [...constraint].sort() : [];
 }
 
 export function hookEventNames(schema) {
@@ -84,12 +118,16 @@ export function findCodexEnumDrift(current, previous, watch = CODEX_WATCH) {
       continue;
     }
     const members = resolveEnumMembers(current, key);
+    const before = previous ? resolveEnumMembers(previous, key) : [];
     if (previous) {
-      const { added, removed } = memberDiff(members, resolveEnumMembers(previous, key));
+      const { added, removed } = memberDiff(members, before);
       if (added.length > 0 || removed.length > 0) findings.push({ key, added, removed });
     }
-    if (members.length > 0 && !members.includes(hardcoded))
-      findings.push({ key, stale: hardcoded });
+    // A key that stops being an enum is the loudest signal available, not the quietest: the runtime
+    // keeps writing its string into whatever the field became. Gating on the current member list
+    // alone downgrades that to a plain "enum changed" bullet.
+    const constrained = members.length > 0 || before.length > 0;
+    if (constrained && !members.includes(hardcoded)) findings.push({ key, stale: hardcoded });
   }
   return findings;
 }

@@ -74,6 +74,52 @@ test("resolveEnumMembers survives a chain of wrappers and a $ref cycle", () => {
   assert.deepEqual(resolveEnumMembers(schema, "web_search"), []);
 });
 
+// allOf narrows and oneOf/anyOf widen. Unioning allOf branches reads a narrowed key as unchanged,
+// which is the false negative this guard exists to end.
+test("resolveEnumMembers intersects allOf branches instead of unioning them", () => {
+  const schema = {
+    properties: {
+      sandbox_mode: { allOf: [{ $ref: "#/definitions/SandboxMode" }, { enum: ["read-only"] }] },
+    },
+    definitions: { SandboxMode: { enum: ["danger-full-access", "read-only", "workspace-write"] } },
+  };
+  assert.deepEqual(resolveEnumMembers(schema, "sandbox_mode"), ["read-only"]);
+});
+
+test("codex enum drift flags a hardcoded value an allOf narrowed away", () => {
+  const wide = refSchema(["read-only", "workspace-write"]);
+  const narrowed = {
+    properties: {
+      sandbox_mode: { allOf: [{ $ref: "#/definitions/SandboxMode" }, { enum: ["read-only"] }] },
+    },
+    definitions: wide.definitions,
+  };
+  const findings = findCodexEnumDrift(narrowed, wide, { sandbox_mode: "workspace-write" });
+  assert.deepEqual(findings, [
+    { key: "sandbox_mode", added: [], removed: ["workspace-write"] },
+    { key: "sandbox_mode", stale: "workspace-write" },
+  ]);
+});
+
+// The runtime keeps writing its string into whatever the field became, so this is the loudest
+// signal available — not a reason to fall back to a plain "enum changed" bullet.
+test("codex enum drift flags a hardcoded value when the key stops being an enum", () => {
+  const findings = findCodexEnumDrift(
+    { properties: { sandbox_mode: { type: "boolean" } } },
+    refSchema(["read-only", "workspace-write"]),
+    { sandbox_mode: "workspace-write" }
+  );
+  assert.deepEqual(findings, [
+    { key: "sandbox_mode", added: [], removed: ["read-only", "workspace-write"] },
+    { key: "sandbox_mode", stale: "workspace-write" },
+  ]);
+});
+
+test("codex enum drift stays quiet for a key that was never an enum", () => {
+  const schema = { properties: { sandbox_mode: { type: "string" } } };
+  assert.deepEqual(findCodexEnumDrift(schema, schema, { sandbox_mode: "workspace-write" }), []);
+});
+
 test("resolveEnumMembers returns nothing for an absent key", () => {
   assert.deepEqual(resolveEnumMembers(refSchema(["read-only"]), "approval_policy"), []);
 });
