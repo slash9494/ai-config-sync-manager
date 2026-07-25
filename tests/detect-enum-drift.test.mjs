@@ -188,9 +188,25 @@ test("codex enum drift flags a watched key that vanished entirely", () => {
   assert.deepEqual(findings, [{ key: "sandbox_mode", missingKey: true }]);
 });
 
-// An empty properties map means the schema was not understood, not that upstream deleted the keys.
-test("codex enum drift does not claim keys vanished when no property is readable", () => {
-  assert.deepEqual(findCodexEnumDrift({}, null, { sandbox_mode: "workspace-write" }), []);
+// snapshot-upstream writes any body that parses as JSON, so an upstream 200 carrying an error
+// payload lands here looking valid. Diffing it would claim every watched key lost every member.
+test("codex enum drift reports a non-schema snapshot instead of diffing it", () => {
+  const findings = findCodexEnumDrift({ message: "Moved" }, refSchema(["read-only"]), {
+    sandbox_mode: "workspace-write",
+  });
+  assert.deepEqual(findings, [{ notASchema: true }]);
+});
+
+test("claude hook drift reports a non-schema snapshot instead of diffing it", () => {
+  const previous = { properties: { hooks: { properties: { PreToolUse: {} } } } };
+  assert.deepEqual(findClaudeHookDrift({ message: "Moved" }, previous), [{ notASchema: true }]);
+});
+
+test("renderSection names a snapshot that parsed but is not a schema", () => {
+  assert.match(
+    renderSection([], [{ notASchema: true }]),
+    /\*\*SCAN SKIPPED\*\* the snapshot parsed/
+  );
 });
 
 test("codex enum drift stays silent when the watched enum is unchanged", () => {

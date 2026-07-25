@@ -110,10 +110,12 @@ function memberDiff(current, previous) {
 // `previous` is optional on purpose: the stale-hardcoded check reads only the current schema, and
 // tying it to a readable HEAD copy would silence it exactly when a snapshot is newly added.
 export function findCodexEnumDrift(current, previous, watch = CODEX_WATCH) {
+  // A snapshot with no properties at all is not a schema — an upstream 200 carrying an error body
+  // parses fine and would otherwise diff as "every member of every watched key was removed".
+  if (Object.keys(current?.properties ?? {}).length === 0) return [{ notASchema: true }];
   const findings = [];
-  const readable = Object.keys(current?.properties ?? {}).length > 0;
   for (const [key, hardcoded] of Object.entries(watch)) {
-    if (readable && !current.properties[key]) {
+    if (!current.properties[key]) {
       findings.push({ key, missingKey: true });
       continue;
     }
@@ -133,6 +135,7 @@ export function findCodexEnumDrift(current, previous, watch = CODEX_WATCH) {
 }
 
 export function findClaudeHookDrift(current, previous, hardcoded = CLAUDE_HOOK_EVENTS) {
+  if (Object.keys(current?.properties ?? {}).length === 0) return [{ notASchema: true }];
   const findings = [];
   const events = hookEventNames(current);
   if (previous) {
@@ -149,6 +152,9 @@ export function findClaudeHookDrift(current, previous, hardcoded = CLAUDE_HOOK_E
 function renderFinding(finding, staleLabel) {
   if (finding.unreadable) {
     return `- **SCAN SKIPPED** \`${finding.unreadable}\` could not be read, so nothing was checked`;
+  }
+  if (finding.notASchema) {
+    return "- **SCAN SKIPPED** the snapshot parsed but declares no properties, so it is not a schema";
   }
   if (finding.missingKey) {
     return `- **KEY GONE** \`${finding.key}\` is no longer in the schema at all`;
