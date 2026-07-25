@@ -520,6 +520,50 @@
     }
   },
   "codex_nested": {
+    "AgentsToml.default_subagent_model": {
+      "reason": "Codex global default model for spawned subagents; Claude selects a subagent model per agent file (rules/agents-map.json models.tiers) and has no settings-level default.",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "de8e028d5710",
+      "recheck_after": "2027-01-25"
+    },
+    "AgentsToml.default_subagent_reasoning_effort": {
+      "reason": "Codex global default reasoning effort for spawned subagents; Claude effortLevel is a session-wide setting, not a subagent default.",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "e59b2df08307",
+      "recheck_after": "2027-01-25"
+    },
+    "AgentsToml.enabled": {
+      "reason": "Codex multi-agent feature toggle; Claude has no settings key that disables subagents (disableAgentView only hides the agent view).",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "57a20d54e9ba",
+      "recheck_after": "2027-01-25"
+    },
+    "AgentsToml.max_concurrent_threads_per_session": {
+      "reason": "Codex subagent concurrency cap, renamed from max_threads; the Claude equivalent is the CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS environment variable, not a settings key.",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "a9f712cd375b",
+      "recheck_after": "2027-01-25"
+    },
     "AppsDefaultConfig.default_tools_approval_mode": {
       "reason": "Codex Apps host-only tool approval default; Claude permission mapping has no Apps scope. Same family as apps_mcp_product_sku.",
       "decided_in": "#24",
@@ -602,6 +646,17 @@
       },
       "schema_desc_hash": "9e9d01fcc8fd",
       "recheck_after": "2027-01-07"
+    },
+    "MultiAgentV2ConfigToml.expose_spawn_agent_model_overrides": {
+      "reason": "Codex multi-agent v2 spawn-tool surface control; Claude has no multi-agent v2 backend. Same family as multi_agent_mode_hint_text.",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "d87382920b90",
+      "recheck_after": "2027-01-25"
     },
     "MultiAgentV2ConfigToml.multi_agent_mode_hint_text": {
       "reason": "Codex multi-agent host UI hint text; no Claude equivalent.",
@@ -704,6 +759,28 @@
       },
       "recheck_after": "2027-01-02"
     },
+    "TokenBudgetConfigToml.auto_compact_fallback_buffer_tokens": {
+      "reason": "Codex auto-compact fallback token reserve; Claude autoCompactEnabled is an on/off toggle with no budget tuning. Same family as reminder_threshold_tokens.",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "d1dec619f6cf",
+      "recheck_after": "2027-01-25"
+    },
+    "TokenBudgetConfigToml.auto_compact_fallback_prompt": {
+      "reason": "Codex developer message sampled before an automatic context rollover; Claude has no auto-compact prompt override. Same family as guidance_message.",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "60db33b1df65",
+      "recheck_after": "2027-01-25"
+    },
     "TokenBudgetConfigToml.enabled": {
       "reason": "Codex pre-auto-compaction reminder; nearest Claude controls are env vars (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_CODE_AUTO_COMPACT_WINDOW) which are not sync targets.",
       "decided_in": "#24",
@@ -746,6 +823,17 @@
       },
       "schema_desc_hash": "1b8616062e5e",
       "recheck_after": "2027-01-02"
+    },
+    "Tui.resume_cwd": {
+      "reason": "Codex TUI working-directory preference for resume and fork; Claude resume has no equivalent settings key.",
+      "decided_in": "#33",
+      "decided_at": "2026-07-25",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "09bac73e37da",
+      "recheck_after": "2027-01-25"
     }
   }
 }
