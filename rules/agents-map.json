@@ -28,7 +28,7 @@
         "id": "mythos-class-model",
         "claude": {
           "alias": "fable",
-          "terms": ["fable(latest)", "Claude Fable 5", "Fable 5"]
+          "terms": ["fable(latest)", "Claude Fable 5", "Fable 5", "Fable"]
         },
         "codex": {
           "alias": "gpt-5.6-sol",
@@ -56,6 +56,9 @@
             "gpt-5.6",
             "gpt-5.5",
             "gpt-5.3-codex",
+            "gpt-5.2-codex",
+            "gpt-5.1-codex",
+            "gpt-5-codex",
             "gpt-5.1-codex-max",
             "gpt5.6(latest)",
             "gpt-5.6 latest",
