@@ -280,7 +280,7 @@
         "mcp__puppeteer",
         "mcp__github__search_repositories"
       ],
-      "pattern": "^((Agent|Bash|Cd|Edit|ExitPlanMode|Glob|Grep|KillShell|LSP|Monitor|MultiEdit|NotebookEdit|PowerShell|Read|Skill|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Write)(\\([^)]+\\))?|mcp__.*)$",
+      "pattern": "^((Agent|Artifact|Bash|Cd|Edit|EnterWorktree|ExitPlanMode|Glob|Grep|KillShell|LSP|Monitor|MultiEdit|NotebookEdit|PowerShell|Read|ShareOnboardingGuide|Skill|TaskCreate|TaskGet|TaskList|TaskOutput|TaskStop|TaskUpdate|TodoWrite|ToolSearch|WebFetch|WebSearch|Workflow|Write)(\\([^)]+\\))?|mcp__.*)$",
       "type": "string"
     }
   },
@@ -423,6 +423,17 @@
       "minLength": 1,
       "type": "string"
     },
+    "askUserQuestionTimeout": {
+      "default": "never",
+      "description": "Idle time before an unanswered AskUserQuestion dialog auto-continues with whatever options you had already selected. Accepts \"60s\", \"5m\", \"10m\", or \"never\" (default: \"never\", which waits until you answer). Appears in /config as Question auto-continue timeout, which writes this key to user settings. Not read from project or local settings. Requires Claude Code v2.1.200 or later. See https://code.claude.com/docs/en/settings#available-settings",
+      "enum": [
+        "60s",
+        "5m",
+        "10m",
+        "never"
+      ],
+      "type": "string"
+    },
     "attribution": {
       "additionalProperties": false,
       "description": "Customize attribution for git commits and pull requests. See https://code.claude.com/docs/en/settings#attribution-settings",
@@ -434,6 +445,11 @@
         "pr": {
           "description": "Attribution for pull request descriptions. Empty string hides pull request attribution",
           "type": "string"
+        },
+        "sessionUrl": {
+          "default": true,
+          "description": "Whether to append the claude.ai session link as a Claude-Session trailer on commits and a link in pull request descriptions when running from a web or Remote Control session. Defaults to true; set to false to omit the link. See https://code.claude.com/docs/en/settings#attribution-settings",
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -443,6 +459,16 @@
       "description": "Automatically compact the conversation when context approaches the limit. Also configurable via the DISABLE_AUTO_COMPACT environment variable. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     },
+    "autoConnectIde": {
+      "default": false,
+      "description": "Automatically connect to a running IDE when Claude Code starts from an external terminal (default: false). Appears in /config as Auto-connect to IDE (external terminal) when running outside a VS Code or JetBrains terminal. Also configurable via the CLAUDE_CODE_AUTO_CONNECT_IDE environment variable, which overrides this when set. See https://code.claude.com/docs/en/settings#global-config-settings",
+      "type": "boolean"
+    },
+    "autoInstallIdeExtension": {
+      "default": true,
+      "description": "Automatically install the Claude Code IDE extension when running from a VS Code terminal (default: true). Appears in /config as Auto-install IDE extension when running inside a VS Code or JetBrains terminal. You can also set the CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL environment variable to 1. See https://code.claude.com/docs/en/settings#global-config-settings",
+      "type": "boolean"
+    },
     "autoMemoryDirectory": {
       "description": "Custom directory path for auto-memory storage. Supports ~/ prefix for home-directory expansion. Ignored if set in checked-in project settings (.claude/settings.json) for security. Defaults to ~/.claude/projects/<sanitized-cwd>/memory/ when unset. See https://code.claude.com/docs/en/memory",
       "minLength": 1,
@@ -450,7 +476,7 @@
     },
     "autoMemoryEnabled": {
       "default": true,
-      "description": "Enable automatic memory saves that capture useful context to .claude/memory/. Also configurable via CLAUDE_CODE_DISABLE_AUTO_MEMORY environment variable (set to 1 to disable, 0 to enable). See https://code.claude.com/docs/en/memory#auto-memory",
+      "description": "Enable automatic memory saves that capture useful context to ~/.claude/projects/<project>/memory/ (derived from the git repository, shared across worktrees). Also configurable via CLAUDE_CODE_DISABLE_AUTO_MEMORY environment variable (set to 1 to disable, 0 to enable). See https://code.claude.com/docs/en/memory#storage-location",
       "type": "boolean"
     },
     "autoMode": {
@@ -730,6 +756,13 @@
       },
       "type": "array"
     },
+    "browserExternalPageTools": {
+      "description": "(Managed settings only) Set to \"disabled\" to prevent Claude from using tools to read or act on external pages in the desktop app's Browser pane. Users can still navigate to external sites themselves, and local dev server previews are unaffected. See https://code.claude.com/docs/en/desktop#browse-external-sites",
+      "enum": [
+        "disabled"
+      ],
+      "type": "string"
+    },
     "channelsEnabled": {
       "description": "(Managed settings only) Allow channels for the organization. On claude.ai Team and Enterprise plans, channels are blocked when this is unset or false. For Anthropic Console accounts using API key authentication, channels are allowed by default unless the organization deploys managed settings, in which case this key must be set to true. See https://code.claude.com/docs/en/channels#enterprise-controls",
       "type": "boolean"
@@ -830,6 +863,15 @@
       },
       "type": "array"
     },
+    "diffTool": {
+      "default": "auto",
+      "description": "Where to display file diffs when an IDE is connected: \"auto\" (default) opens diffs in the IDE's diff viewer, \"terminal\" keeps them in the terminal. Appears in /config as Diff tool only when Claude Code is connected to a VS Code or JetBrains IDE. See https://code.claude.com/docs/en/settings#global-config-settings",
+      "enum": [
+        "auto",
+        "terminal"
+      ],
+      "type": "string"
+    },
     "disableAgentView": {
       "description": "(Managed settings) Turn off background agents and the agent view: claude agents, --bg, /background, and the on-demand supervisor. Also configurable via the CLAUDE_CODE_DISABLE_AGENT_VIEW environment variable (set to 1 to disable). See https://code.claude.com/docs/en/agent-view",
       "type": "boolean"
@@ -849,6 +891,10 @@
       ],
       "type": "string"
     },
+    "disableBrowserExternalNavigation": {
+      "description": "(Managed settings only) Set to true to turn off external browsing in the desktop app's Browser pane. Neither users nor Claude can navigate to external sites, and localhost dev server previews are unaffected. The value must be the JSON boolean true; the string \"true\" is ignored. See https://code.claude.com/docs/en/desktop#browse-external-sites",
+      "type": "boolean"
+    },
     "disableBundledSkills": {
       "description": "Disable the skills and workflows that ship with Claude Code: bundled skills and workflows are removed entirely, while built-in slash commands like /init stay typable but are hidden from the model. Skills from plugins, .claude/skills/, and .claude/commands/ are unaffected. Also configurable via the CLAUDE_CODE_DISABLE_BUNDLED_SKILLS environment variable. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
@@ -858,14 +904,22 @@
       "type": "boolean"
     },
     "disableDeepLinkRegistration": {
-      "description": "Set to \"disable\" to prevent Claude Code from registering the `claude://` deep-link protocol handler on startup. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings#available-settings",
+      "description": "Set to \"disable\" to prevent Claude Code from registering the `claude-cli://` deep-link protocol handler on startup. Most useful in managed settings where users cannot override it. See https://code.claude.com/docs/en/settings#available-settings",
       "enum": [
         "disable"
       ],
       "type": "string"
     },
+    "disableMobileSimulatorTools": {
+      "description": "(Managed settings only) Set to true to block Claude's tools for the desktop app's iOS Simulator pane. Users keep manual use of the pane; only Claude's access is removed. The value must be the JSON boolean true; any other value is ignored, and a malformed value such as \"true\" or 1 logs a warning. See https://code.claude.com/docs/en/desktop-ios-simulator#turn-off-simulator-access",
+      "type": "boolean"
+    },
     "disableRemoteControl": {
       "description": "Disable Remote Control: blocks claude remote-control, the --remote-control flag, auto-start, and the in-session toggle. Requires Claude Code v2.1.128 or later. See https://code.claude.com/docs/en/remote-control",
+      "type": "boolean"
+    },
+    "disableSideloadFlags": {
+      "description": "(Managed settings only) Reject the --plugin-dir, --plugin-url, --agents, and --mcp-config CLI flags at startup, which users could otherwise pass to bypass strictKnownMarketplaces for a single run. Also rejects these flags from any surface that spawns the CLI with them internally, currently Cowork local sessions in the desktop app. A --mcp-config whose servers are all in-process type: \"sdk\" entries is still accepted, so the Agent SDK and VS Code extension keep working. Does not block claude mcp add, .mcp.json, or SDK setMcpServers(); pair with allowedMcpServers for per-server MCP control. Requires Claude Code v2.1.193 or later. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     },
     "disableSkillShellExecution": {
@@ -909,11 +963,20 @@
       ],
       "type": "string"
     },
+    "emojiCompletionEnabled": {
+      "default": true,
+      "description": "Show emoji suggestions when you type : plus a shortcode in the prompt input, and replace a completed shortcode such as :heart: with its emoji (default: true). Set to false to disable both. Requires Claude Code v2.1.217 or later. See https://code.claude.com/docs/en/interactive-mode#emoji-shortcodes",
+      "type": "boolean"
+    },
     "enableAllProjectMcpServers": {
       "description": "Whether to automatically approve all MCP servers in the project. See https://code.claude.com/docs/en/mcp",
       "examples": [
         true
       ],
+      "type": "boolean"
+    },
+    "enableArtifact": {
+      "description": "Enable or disable the Artifact tool for this user. When unset, the default follows the feature's availability for your account. The Artifacts row in /config writes this key. A managed disableArtifact and your organization's admin setting take precedence, and the key is ignored in project and local settings (.claude/settings.json, .claude/settings.local.json), which a repository could otherwise commit. Requires Claude Code v2.1.196 or later. See https://code.claude.com/docs/en/artifacts",
       "type": "boolean"
     },
     "enabledMcpjsonServers": {
@@ -1001,7 +1064,7 @@
           "type": "string"
         },
         "ANTHROPIC_BEDROCK_SERVICE_TIER": {
-          "description": "Select Bedrock service tier; sent as X-Amzn-Bedrock-Service-Tier header. See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21122",
+          "description": "Select Bedrock service tier; sent as X-Amzn-Bedrock-Service-Tier header. See https://code.claude.com/docs/en/amazon-bedrock#service-tiers",
           "enum": [
             "default",
             "flex",
@@ -1101,6 +1164,10 @@
           "description": "Microsoft Foundry authentication key",
           "type": "string"
         },
+        "ANTHROPIC_FOUNDRY_AUTH_TOKEN": {
+          "description": "Bearer token for Microsoft Foundry authentication, such as a Microsoft Entra access token. Claude Code sends it as the Authorization: Bearer header. Takes precedence over ANTHROPIC_FOUNDRY_API_KEY and over the Azure default credential chain. Requires Claude Code v2.1.203 or later. See https://code.claude.com/docs/en/microsoft-foundry",
+          "type": "string"
+        },
         "ANTHROPIC_FOUNDRY_BASE_URL": {
           "description": "Microsoft Foundry resource URL",
           "type": "string"
@@ -1122,11 +1189,11 @@
           "type": "string"
         },
         "ANTHROPIC_VERTEX_BASE_URL": {
-          "description": "Override Google Vertex AI endpoint URL",
+          "description": "Override Google Cloud's Agent Platform (formerly Vertex AI) endpoint URL. Use for custom endpoints or when routing through an LLM gateway",
           "type": "string"
         },
         "ANTHROPIC_VERTEX_PROJECT_ID": {
-          "description": "Google Vertex AI project ID",
+          "description": "GCP project ID for Google Cloud's Agent Platform (formerly Vertex AI) requests. Overridden by GCLOUD_PROJECT, GOOGLE_CLOUD_PROJECT, or the project in your GOOGLE_APPLICATION_CREDENTIALS credential file",
           "type": "string"
         },
         "ANTHROPIC_WORKSPACE_ID": {
@@ -1138,7 +1205,7 @@
           "type": "string"
         },
         "API_TIMEOUT_MS": {
-          "description": "API request timeout in milliseconds (default: 600000)",
+          "description": "Timeout for API requests in milliseconds (default: 600000, or 10 minutes; maximum: 2147483647). Increase this when requests time out on slow networks or when routing through a proxy. Values above the maximum overflow the underlying timer and cause requests to fail immediately.",
           "type": "string"
         },
         "AWS_BEARER_TOKEN_BEDROCK": {
@@ -1179,6 +1246,14 @@
             "0",
             "1"
           ],
+          "type": "string"
+        },
+        "CLAUDE_AFK_COUNTDOWN_MS": {
+          "description": "How many milliseconds before auto-continue the on-screen countdown appears on an unanswered AskUserQuestion dialog. Default 20000 (20 seconds). See CLAUDE_AFK_TIMEOUT_MS. Requires Claude Code v2.1.198 or later. See https://code.claude.com/docs/en/env-vars",
+          "type": "string"
+        },
+        "CLAUDE_AFK_TIMEOUT_MS": {
+          "description": "How many milliseconds of idle time before an unanswered AskUserQuestion dialog auto-continues without you. Default 60000 (60 seconds). Requires Claude Code v2.1.198 or later. See https://code.claude.com/docs/en/env-vars",
           "type": "string"
         },
         "CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS": {
@@ -1297,6 +1372,14 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_AWS_CHAIN_RESOLVE_TIMEOUT_MS": {
+          "description": "Time in milliseconds Claude Code waits for the AWS default credential provider chain to produce credentials before the request fails with \"AWS default-chain credential resolve timed out\" (default: 60000). Raise it when a step in your chain legitimately needs longer, such as a browser-based SSO sign-in with MFA through a wrapper like aws-vault. Applies wherever Claude Code signs with the default chain. Requires Claude Code v2.1.207 or later. See https://code.claude.com/docs/en/amazon-bedrock#credential-caching-and-resolution-timeout",
+          "type": "string"
+        },
+        "CLAUDE_CODE_BRIDGE_SESSION_ID": {
+          "description": "Set automatically in Bash tool and hook command subprocesses while the session has an active Remote Control connection, and removed when the connection ends. The value is the session's ID in session_ form, the same identifier that appears in the session's claude.ai/code URL, so a script can link back to the session that ran it. Requires Claude Code v2.1.199 or later. See https://code.claude.com/docs/en/remote-control",
+          "type": "string"
+        },
         "CLAUDE_CODE_CERT_STORE": {
           "description": "CA certificate sources (comma-separated: 'bundled', 'system')",
           "type": "string"
@@ -1322,7 +1405,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_DEBUG_LOGS_DIR": {
-          "description": "Directory path for debug log files",
+          "description": "Override the debug log file path. Despite the name, this is a file path, not a directory.",
           "type": "string"
         },
         "CLAUDE_CODE_DEBUG_LOG_LEVEL": {
@@ -1408,6 +1491,22 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_GUARD": {
+          "description": "Set to 1 to skip the check that an Amazon Bedrock streaming response carries the application/vnd.amazon.eventstream content-type. Without this variable, a response with a different content-type fails with an error naming that content-type, which means a gateway or proxy is transforming the response. Set it only when the gateway rewrites the Content-Type header but passes the binary event-stream body through unmodified; if the body itself was transformed, requests fail with \"Truncated event message received\" instead. Requires Claude Code v2.1.208 or later. See https://code.claude.com/docs/en/amazon-bedrock#streaming-errors-behind-a-gateway-or-proxy",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF": {
+          "description": "Set to 1 to stop a background session's running background shell commands, dynamic workflows, and (as of v2.1.198) background subagents when the supervisor stops, restarts, or updates that session's process, instead of handing them off to the session's next process. Affects only that handoff; CLAUDE_DISABLE_ADOPT turns off both. Requires Claude Code v2.1.196 or later. See https://code.claude.com/docs/en/env-vars",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP": {
           "description": "UNDOCUMENTED. Disable automatic memory-pressure reaping of idle background shell commands (added v2.1.193).",
           "enum": [
@@ -1442,6 +1541,14 @@
         },
         "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": {
           "description": "Strip anthropic-beta headers from API requests. See https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21123",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS": {
+          "description": "Set to 1 to disable the built-in Explore and Plan subagents. Requires Claude Code v2.1.198 or later. See https://code.claude.com/docs/en/env-vars",
           "enum": [
             "0",
             "1"
@@ -1489,7 +1596,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_DISABLE_MOUSE": {
-          "description": "Disable mouse tracking in fullscreen mode",
+          "description": "Disable mouse tracking in fullscreen mode. See https://code.claude.com/docs/en/fullscreen#keep-native-text-selection",
           "enum": [
             "0",
             "1"
@@ -1497,7 +1604,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_DISABLE_MOUSE_CLICKS": {
-          "description": "UNDOCUMENTED. Disable mouse click/drag/hover in fullscreen mode while keeping wheel scroll (added v2.1.195).",
+          "description": "Disable mouse click/drag/hover in fullscreen mode while keeping wheel scroll (requires v2.1.195+). CLAUDE_CODE_DISABLE_MOUSE takes precedence when both variables are set. See https://code.claude.com/docs/en/fullscreen#keep-native-text-selection",
           "enum": [
             "0",
             "1"
@@ -1520,8 +1627,16 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_DISABLE_NOTIFICATION_PRESENCE_CHECK": {
+          "description": "Set to 1 to send desktop notifications from the PushNotification tool even while focused on the terminal. Requires Claude Code v2.1.193 or later. See https://code.claude.com/docs/en/env-vars",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": {
-          "description": "Skip automatic installation of official marketplace plugins",
+          "description": "Skip automatic installation of official marketplace plugins. See https://code.claude.com/docs/en/env-vars",
           "enum": [
             "0",
             "1"
@@ -1529,7 +1644,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_DISABLE_POLICY_SKILLS": {
-          "description": "Skip loading system-wide policy skills",
+          "description": "Skip loading system-wide policy skills. See https://code.claude.com/docs/en/env-vars",
           "enum": [
             "0",
             "1"
@@ -1580,6 +1695,14 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_ENABLE_APPEND_SUBAGENT_PROMPT": {
+          "description": "Set to 1 to enable appending extra text to the end of every subagent's system prompt. The --append-subagent-system-prompt flag supplies the appended text and sets this variable automatically, so you do not need to set it yourself. Requires Claude Code v2.1.205 or later. See https://code.claude.com/docs/en/sub-agents",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_ENABLE_AUTO_MODE": {
           "description": "Set to 1 to make auto mode available on Amazon Bedrock, Google Cloud Vertex AI, and Microsoft Foundry (requires v2.1.158+; no effect on the Anthropic API where auto mode is available by default). See https://code.claude.com/docs/en/env-vars",
           "enum": [
@@ -1597,7 +1720,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_ENABLE_BACKGROUND_PLUGIN_REFRESH": {
-          "description": "Refresh plugins at turn boundaries",
+          "description": "Refresh plugins at turn boundaries. See https://code.claude.com/docs/en/env-vars",
           "enum": [
             "0",
             "1"
@@ -1634,6 +1757,10 @@
             "true",
             "false"
           ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING": {
+          "description": "Enable file checkpointing for a non-interactive CLI run, so `claude -p --resume <session-id> --rewind-files <checkpoint-uuid>` can rewind files. The Agent SDK sets this internally when enable_file_checkpointing (Python) or enableFileCheckpointing (TypeScript) is enabled; the bare CLI never sets it. Without it, a non-interactive rewind fails with \"File rewinding is not enabled\". See https://code.claude.com/docs/en/agent-sdk/file-checkpointing",
           "type": "string"
         },
         "CLAUDE_CODE_ENABLE_TASKS": {
@@ -1712,6 +1839,14 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_FORWARD_SUBAGENT_TEXT": {
+          "description": "Set to 1 to emit subagent text and thinking blocks in claude -p --output-format stream-json output, the same behavior as the --forward-subagent-text flag. Use the variable when a harness invokes claude and cannot pass the flag itself. Unlike the flag, which exits with an error outside non-interactive mode with stream-json output, the variable is ignored there so that nested invocations keep working when it is set process-wide. Requires Claude Code v2.1.211 or later. See https://code.claude.com/docs/en/sub-agents",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_GIT_BASH_PATH": {
           "description": "Path to Git Bash executable (Windows only)",
           "type": "string"
@@ -1764,6 +1899,10 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": {
+          "description": "How many subagents can be running in one session before the Agent tool refuses to spawn another (default: 20). Accepts a positive whole number in plain digits; anything else is ignored, so the variable can adjust the cap but cannot disable it. Requires Claude Code v2.1.217 or later. See https://code.claude.com/docs/en/sub-agents#concurrent-subagent-limit",
+          "type": "string"
+        },
         "CLAUDE_CODE_MAX_CONTEXT_TOKENS": {
           "description": "Override context window size in tokens",
           "type": "string"
@@ -1776,12 +1915,24 @@
           "description": "Maximum API request retry attempts (default: 10)",
           "type": "string"
         },
+        "CLAUDE_CODE_MAX_SUBAGENTS_PER_SESSION": {
+          "description": "Cap on the number of subagents one session can spawn with the Agent tool (default: 200). When Claude reaches the cap, spawning another subagent fails with an error telling Claude to finish the remaining work directly. Accepts a positive whole number in plain digits with no upper bound; this variable does not take the scientific notation or digit-separator spellings. Anything else is ignored and the default applies, so the cap can be raised but not turned off. Requires Claude Code v2.1.212 or later. See https://code.claude.com/docs/en/sub-agents#session-subagent-limit",
+          "type": "string"
+        },
+        "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": {
+          "description": "Number of subagent layers allowed below the main conversation (default: 1). At the default, subagents cannot spawn their own subagents; set 2 or higher to allow it. Accepts a positive whole number in plain digits; anything else is ignored, so the limit can be raised but not turned off. Requires Claude Code v2.1.217 or later. See https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents",
+          "type": "string"
+        },
         "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": {
           "description": "Maximum parallel tool executions (default: 10)",
           "type": "string"
         },
         "CLAUDE_CODE_MAX_TURNS": {
           "description": "Cap the number of agentic turns when no explicit limit is passed. Equivalent to --max-turns, which takes precedence. A non-positive integer is rejected at startup. See https://code.claude.com/docs/en/env-vars",
+          "type": "string"
+        },
+        "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION": {
+          "description": "Cap on the total number of WebSearch calls one session can make (default: 200). When Claude reaches the cap, further WebSearch calls return a notice telling it to continue with the information it already gathered. Accepts a positive whole number with no upper bound. Anything else is ignored and the default applies, so the cap can be raised but not turned off. Requires Claude Code v2.1.212 or later. See https://code.claude.com/docs/en/tools-reference#websearch-tool-behavior",
           "type": "string"
         },
         "CLAUDE_CODE_MCP_ALLOWLIST_ENV": {
@@ -1792,8 +1943,12 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS": {
+          "description": "Elapsed time in milliseconds before a still-running MCP tool call moves to a background task (default: 120000, or 2 minutes). Set to 0 to turn automatic backgrounding off. Requires Claude Code v2.1.212 or later. See https://code.claude.com/docs/en/mcp#automatic-backgrounding-of-long-tool-calls",
+          "type": "string"
+        },
         "CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT": {
-          "description": "Idle timeout in milliseconds for remote MCP tool calls (default: 300000, about 5 minutes). When an HTTP, SSE, WebSocket, or claude.ai connector MCP server sends no response and no progress notification for this long, the tool call aborts with an error instead of waiting for the overall MCP_TOOL_TIMEOUT. Set to 0 to disable the idle check. Values below 1000 are raised to one second, and the value is capped at the effective MCP_TOOL_TIMEOUT. Does not apply to stdio or IDE servers. Requires Claude Code v2.1.187 or later. See https://code.claude.com/docs/en/mcp",
+          "description": "Idle timeout in milliseconds for MCP tool calls. When a stdio, HTTP, SSE, WebSocket, or claude.ai connector MCP server sends no response and no progress notification for this long, the tool call aborts with an error instead of waiting for the overall MCP_TOOL_TIMEOUT. Overrides the per-transport defaults of 300000 (5 minutes) for network servers and 1800000 (30 minutes) for stdio servers. Set to 0 to disable the idle check. Values below 1000 are raised to one second, and the value is capped at the effective MCP_TOOL_TIMEOUT. A per-server timeout in .mcp.json of at least 1000 raises that server's idle window to at least the timeout value. Does not apply to IDE servers or SDK in-process servers. Requires Claude Code v2.1.187 or later. Before v2.1.203, stdio servers were exempt from the idle timeout. See https://code.claude.com/docs/en/mcp",
           "type": "string"
         },
         "CLAUDE_CODE_NATIVE_CURSOR": {
@@ -1832,12 +1987,8 @@
           "description": "OAuth access token",
           "type": "string"
         },
-        "CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE": {
-          "description": "Set to 1 to pin fast mode to Claude Opus 4.6 instead of the default Opus 4.8 (the fast-mode default since v2.1.154). With this set, /fast runs on Opus 4.6. See https://code.claude.com/docs/en/fast-mode",
-          "enum": [
-            "0",
-            "1"
-          ],
+        "CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH": {
+          "description": "Maximum length of content-bearing OpenTelemetry attributes (model responses, tool content, system prompts, raw API bodies), truncation marker included, in UTF-16 code units (default: 61440, i.e. 60 KB). Raise it only if your telemetry backend accepts attribute values larger than 64 KB, or lower it to cut telemetry volume. Requires Claude Code v2.1.214 or later. See https://code.claude.com/docs/en/monitoring-usage#common-configuration-variables",
           "type": "string"
         },
         "CLAUDE_CODE_OTEL_DIAG_STDERR": {
@@ -1877,7 +2028,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_PLUGIN_CACHE_DIR": {
-          "description": "Root directory for plugin cache",
+          "description": "Override the plugins root directory. Despite the name, this sets the parent directory, not the cache itself: marketplaces and the plugin cache live in subdirectories under this path. Defaults to ~/.claude/plugins. See https://code.claude.com/docs/en/env-vars",
           "type": "string"
         },
         "CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS": {
@@ -1901,7 +2052,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_PLUGIN_SEED_DIR": {
-          "description": "Path(s) to pre-populated plugin directories",
+          "description": "Path(s) to pre-populated plugin directories. See https://code.claude.com/docs/en/plugin-marketplaces#pre-populate-plugins-for-containers",
           "type": "string"
         },
         "CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY": {
@@ -1914,6 +2065,10 @@
         },
         "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS": {
           "description": "Cap, in milliseconds, on how long `claude -p` waits for background subagents at exit (default 10 minutes; set to 0 to wait without limit, added v2.1.182). See https://code.claude.com/docs/en/headless#background-tasks-at-exit",
+          "type": "string"
+        },
+        "CLAUDE_CODE_PROCESS_WRAPPER": {
+          "description": "Launch the processes Claude Code starts from its own binary, such as the background service that hosts agent view sessions, through a corporate launcher given as an argv prefix like /opt/corp/launcher. Set it in the env block of user or managed settings, not as a shell export, so the detached background service inherits it; project and local settings cannot set it. Equivalent to the processWrapper setting, which requires Claude Code v2.1.210 or later; this variable takes precedence when both are set. The VS Code extension configures its own launcher separately through its claudeProcessWrapper setting. Ignored on Windows. Requires Claude Code v2.1.208 or later. See https://code.claude.com/docs/en/corporate-launcher",
           "type": "string"
         },
         "CLAUDE_CODE_PROPAGATE_TRACEPARENT": {
@@ -1960,6 +2115,10 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_RESUME_INTERRUPTED_TURN_MAX_AGE_MS": {
+          "description": "Maximum age in milliseconds of the last transcript message for a session that ended mid-turn to continue automatically on resume. When the last message is older than this bound, Claude Code skips both the CLAUDE_CODE_RESUME_INTERRUPTED_TURN automatic resume and the injected CLAUDE_CODE_RESUME_PROMPT continuation message, and the session starts idle so you continue explicitly. Unset or 0 means no bound; a negative or non-numeric value applies a one-hour bound. Spawn scripts for long-running agents can set this so a restart against an old transcript does not re-run a stale prompt. Claude Code sets a one-hour bound itself when it restarts a crashed agent view session that inherited its conversation from an interactive session. Requires Claude Code v2.1.211 or later. See https://code.claude.com/docs/en/env-vars",
+          "type": "string"
+        },
         "CLAUDE_CODE_RESUME_PROMPT": {
           "description": "Override the continuation message injected when resuming a session that ended mid-turn (default \"Continue from where you left off.\"). An empty string uses the default. See https://code.claude.com/docs/en/env-vars",
           "type": "string"
@@ -1985,7 +2144,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_SCROLL_SPEED": {
-          "description": "Mouse wheel scroll speed multiplier (1-20)",
+          "description": "Set the mouse wheel scroll multiplier in fullscreen rendering. Accepts any positive value up to 20, including fractional values below 1 such as 0.5 to slow accelerated trackpad and wheel scrolling in terminals that already amplify wheel events. Set to 3 to match vim if your terminal sends one wheel event per notch without amplification. See https://code.claude.com/docs/en/fullscreen#mouse-wheel-scrolling",
           "type": "string"
         },
         "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS": {
@@ -2028,8 +2187,32 @@
           ],
           "type": "string"
         },
+        "CLAUDE_CODE_SKIP_AWS_CRED_CACHE": {
+          "description": "Set to 1 to turn off the in-process cache of credentials resolved from the AWS default credential provider chain, so Claude Code resolves the chain on every API request. With the cache off, an SSO-backed profile requests credentials from IAM Identity Center on every request. Requires Claude Code v2.1.207 or later. See https://code.claude.com/docs/en/amazon-bedrock#credential-caching-and-resolution-timeout",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
         "CLAUDE_CODE_SKIP_BEDROCK_AUTH": {
           "description": "Skip AWS authentication for Bedrock",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS": {
+          "description": "Set to 1 to treat a failed fast mode availability check as available, for networks that block the check's direct request to api.anthropic.com. Claude Code still honors a \"disabled by your organization\" response. See https://code.claude.com/docs/en/fast-mode#use-fast-mode-behind-proxies-and-llm-gateways",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK": {
+          "description": "Set to 1 to skip the client-side fast mode availability check, for proxies that intercept the check's request rather than refuse it. The API still rejects fast mode requests when your organization has fast mode disabled. See https://code.claude.com/docs/en/fast-mode#use-fast-mode-behind-proxies-and-llm-gateways",
           "enum": [
             "0",
             "1"
@@ -2061,7 +2244,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_SKIP_VERTEX_AUTH": {
-          "description": "Skip Google authentication for Vertex AI",
+          "description": "Skip Google authentication for Google Cloud's Agent Platform",
           "enum": [
             "0",
             "1"
@@ -2128,6 +2311,10 @@
           "description": "Agent team membership name",
           "type": "string"
         },
+        "CLAUDE_CODE_TEAM_TEARDOWN_PARK_TIMEOUT_MS": {
+          "description": "Override, in milliseconds, how long a non-interactive session waits at exit for its agent team to finish tearing down. Accepts 1000 to 60000; an out-of-range value is ignored and the default of 10000 applies. Requires Claude Code v2.1.206 or later. See https://code.claude.com/docs/en/agent-teams",
+          "type": "string"
+        },
         "CLAUDE_CODE_TMPDIR": {
           "description": "Override temp directory path",
           "type": "string"
@@ -2189,7 +2376,7 @@
           "type": "string"
         },
         "CLAUDE_CODE_USE_VERTEX": {
-          "description": "Enable Google Vertex AI as the API provider. See https://code.claude.com/docs/en/google-vertex-ai#4-configure-claude-code",
+          "description": "Enable Google Cloud's Agent Platform as the API provider. See https://code.claude.com/docs/en/google-vertex-ai#4-configure-claude-code",
           "enum": [
             "0",
             "1"
@@ -2198,6 +2385,14 @@
         },
         "CLAUDE_CONFIG_DIR": {
           "description": "Override the configuration directory (default ~/.claude) where settings, credentials, session history, and plugins are stored. Useful for running multiple accounts side by side. See https://code.claude.com/docs/en/env-vars",
+          "type": "string"
+        },
+        "CLAUDE_DISABLE_ADOPT": {
+          "description": "Set to 1 to stop in-flight background work instead of carrying it over when you background a session by pressing ← or with /background. Claude Code asks you to confirm before backgrounding, then stops the tasks that would otherwise carry over. Requires Claude Code v2.1.195 or later. See https://code.claude.com/docs/en/env-vars",
+          "enum": [
+            "0",
+            "1"
+          ],
           "type": "string"
         },
         "CLAUDE_EFFORT": {
@@ -2228,7 +2423,7 @@
           "type": "string"
         },
         "CLAUDE_ENABLE_STREAM_WATCHDOG": {
-          "description": "Set to 1 to force-enable, or 0 to force-disable, the event-level streaming idle watchdog. When unset, server-controlled on the direct Anthropic API and off on other providers. See https://code.claude.com/docs/en/env-vars",
+          "description": "Set to 1 to force-enable, or 0 to force-disable, the event-level streaming idle watchdog. When unset, the watchdog is on by default for all providers (as of v2.1.196; before that the unset default was server-controlled on the direct Anthropic API and off on other providers). See https://code.claude.com/docs/en/env-vars",
           "enum": [
             "0",
             "1"
@@ -2237,6 +2432,10 @@
         },
         "CLAUDE_ENV_FILE": {
           "description": "File path for persisting environment variables across Bash commands",
+          "type": "string"
+        },
+        "CLAUDE_PID": {
+          "description": "Claude Code sets this to its own process ID in the subprocesses it spawns: Bash and PowerShell tool commands and hook commands. On Linux, the Bash tool's shell integration uses it to refuse a pkill pattern that would match the Claude Code process itself. Read it from your own scripts to identify or signal the parent Claude Code process deliberately. Requires Claude Code v2.1.214 or later. See https://code.claude.com/docs/en/errors#pkill-pattern-matches-the-claude-code-process",
           "type": "string"
         },
         "CLAUDE_PROJECT_DIR": {
@@ -2252,7 +2451,7 @@
           "type": "string"
         },
         "CLOUD_ML_REGION": {
-          "description": "Vertex AI region: global, a multi-region location (eu, us), or a specific region (e.g. us-east5). See https://code.claude.com/docs/en/google-vertex-ai#region-configuration",
+          "description": "Google Cloud's Agent Platform region: global, a multi-region location (eu, us), or a specific region (e.g. us-east5). See https://code.claude.com/docs/en/google-vertex-ai#region-configuration",
           "type": "string"
         },
         "DEBUG": {
@@ -2468,7 +2667,7 @@
           "type": "string"
         },
         "ENABLE_TOOL_SEARCH": {
-          "description": "Control MCP tool search: \"true\" always defers and sends the beta header (requests fail on Vertex AI models earlier than Sonnet 4.5/Opus 4.5 or on proxies that do not support tool_reference); \"auto\" loads tools upfront if they fit within 10% of context; \"auto:N\" sets a custom threshold percentage (e.g. auto:5); \"false\" loads all tools upfront. Also applies when ANTHROPIC_BASE_URL points to a non-first-party host. See https://code.claude.com/docs/en/google-vertex-ai#4-configure-claude-code",
+          "description": "Control MCP tool search: \"true\" always defers and sends the beta header (requests fail on Google Cloud's Agent Platform models earlier than Sonnet 4.5/Opus 4.5 or on proxies that do not support tool_reference); \"auto\" loads tools upfront if they fit within 10% of context; \"auto:N\" sets a custom threshold percentage (e.g. auto:5); \"false\" loads all tools upfront. Also applies when ANTHROPIC_BASE_URL points to a non-first-party host. See https://code.claude.com/docs/en/google-vertex-ai#4-configure-claude-code",
           "type": "string"
         },
         "FALLBACK_FOR_ALL_PRIMARY_MODELS": {
@@ -2477,6 +2676,14 @@
         },
         "FORCE_AUTOUPDATE_PLUGINS": {
           "description": "Keep plugin auto-updates enabled even when DISABLE_AUTOUPDATER=1 is set. See https://code.claude.com/docs/en/discover-plugins#configure-auto-updates",
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        },
+        "FORCE_HYPERLINK": {
+          "description": "Set to 1 to enable clickable OSC 8 hyperlinks when your terminal supports them but is not auto-detected, or 0 to disable them",
           "enum": [
             "0",
             "1"
@@ -2492,7 +2699,7 @@
           "type": "string"
         },
         "GOOGLE_APPLICATION_CREDENTIALS": {
-          "description": "Path to a GCP credential configuration file (service account key or workload identity federation config) used for Vertex AI authentication. See https://code.claude.com/docs/en/google-vertex-ai#3-configure-gcp-credentials",
+          "description": "Path to a GCP credential configuration file (service account key or workload identity federation config) used for Google Cloud's Agent Platform authentication. See https://code.claude.com/docs/en/google-vertex-ai#3-configure-gcp-credentials",
           "type": "string"
         },
         "HTTPS_PROXY": {
@@ -2567,6 +2774,10 @@
           "description": "Domains to bypass proxy (space or comma-separated, or '*' for all)",
           "type": "string"
         },
+        "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT": {
+          "description": "Standard OpenTelemetry SDK limit on attribute value length. Claude Code caps content-bearing telemetry attributes at the smaller of this and CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH, so the truncation marker stays within the SDK limit. Claude Code reads the OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT and OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT variants the same way, and the smallest set value applies to all signals. Requires Claude Code v2.1.214 or later. See https://code.claude.com/docs/en/monitoring-usage#common-configuration-variables",
+          "type": "string"
+        },
         "OTEL_EXPORTER_OTLP_CERTIFICATE": {
           "description": "Path to the CA certificate for gRPC OTLP mTLS. See https://code.claude.com/docs/en/monitoring-usage#mtls-authentication",
           "type": "string"
@@ -2587,6 +2798,14 @@
           "description": "Headers sent with OTLP exporter requests (e.g. Authorization=Bearer token). See https://code.claude.com/docs/en/monitoring-usage#common-configuration-variables",
           "type": "string"
         },
+        "OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE": {
+          "description": "Path to the client certificate for gRPC OTLP mTLS, overriding OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE for logs only. See https://code.claude.com/docs/en/monitoring-usage#mtls-authentication",
+          "type": "string"
+        },
+        "OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY": {
+          "description": "Path to the client private key for gRPC OTLP mTLS, overriding OTEL_EXPORTER_OTLP_CLIENT_KEY for logs only. See https://code.claude.com/docs/en/monitoring-usage#mtls-authentication",
+          "type": "string"
+        },
         "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": {
           "description": "OTLP exporter endpoint override for logs. See https://code.claude.com/docs/en/monitoring-usage#common-configuration-variables",
           "type": "string"
@@ -2598,6 +2817,14 @@
             "http/json",
             "http/protobuf"
           ],
+          "type": "string"
+        },
+        "OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE": {
+          "description": "Path to the client certificate for gRPC OTLP mTLS, overriding OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE for metrics only. See https://code.claude.com/docs/en/monitoring-usage#mtls-authentication",
+          "type": "string"
+        },
+        "OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY": {
+          "description": "Path to the client private key for gRPC OTLP mTLS, overriding OTEL_EXPORTER_OTLP_CLIENT_KEY for metrics only. See https://code.claude.com/docs/en/monitoring-usage#mtls-authentication",
           "type": "string"
         },
         "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": {
@@ -2628,6 +2855,14 @@
             "http/json",
             "http/protobuf"
           ],
+          "type": "string"
+        },
+        "OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE": {
+          "description": "Path to the client certificate for gRPC OTLP mTLS, overriding OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE for traces only. See https://code.claude.com/docs/en/monitoring-usage#mtls-authentication",
+          "type": "string"
+        },
+        "OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY": {
+          "description": "Path to the client private key for gRPC OTLP mTLS, overriding OTEL_EXPORTER_OTLP_CLIENT_KEY for traces only. See https://code.claude.com/docs/en/monitoring-usage#mtls-authentication",
           "type": "string"
         },
         "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": {
@@ -2811,6 +3046,14 @@
           "description": "Override the Vertex AI region for Claude Opus 4.8 (used when CLOUD_ML_REGION=global). See https://code.claude.com/docs/en/env-vars",
           "type": "string"
         },
+        "VERTEX_REGION_CLAUDE_5_OPUS": {
+          "description": "Override region for Claude Opus 5 when using Google Cloud's Agent Platform (formerly Vertex AI). Added in v2.1.219. See https://code.claude.com/docs/en/google-vertex-ai",
+          "type": "string"
+        },
+        "VERTEX_REGION_CLAUDE_5_SONNET": {
+          "description": "Override region for Claude Sonnet 5 when using Google Cloud's Agent Platform (formerly Vertex AI). Added in v2.1.197. See https://code.claude.com/docs/en/google-vertex-ai",
+          "type": "string"
+        },
         "VERTEX_REGION_CLAUDE_FABLE_5": {
           "description": "Override the Vertex AI region for Claude Fable 5 (used when CLOUD_ML_REGION=global). See https://code.claude.com/docs/en/env-vars",
           "type": "string"
@@ -2824,6 +3067,11 @@
         "pattern": "^[A-Z_][A-Z0-9_]*$"
       },
       "type": "object"
+    },
+    "externalEditorContext": {
+      "default": false,
+      "description": "Prepend Claude's previous response as #-commented context when you open the external editor with Ctrl+G (default: false). Appears in /config as Show last response in external editor. See https://code.claude.com/docs/en/settings#global-config-settings",
+      "type": "boolean"
     },
     "extraKnownMarketplaces": {
       "additionalProperties": {
@@ -2897,6 +3145,10 @@
                     "description": "GitHub repository in owner/repo format",
                     "type": "string"
                   },
+                  "skipLfs": {
+                    "description": "Skip Git LFS downloads when Claude Code clones or updates the marketplace repository. LFS pointer files remain as pointers instead of downloading their content. Use this when the repository contains large LFS objects unrelated to plugin content. Requires Claude Code v2.1.153 or later",
+                    "type": "boolean"
+                  },
                   "source": {
                     "const": "github",
                     "description": "Identifies the marketplace source type",
@@ -2919,6 +3171,10 @@
                   "ref": {
                     "description": "Git branch or tag to use (e.g., \"main\", \"v1.0.0\"). Defaults to repository default branch.",
                     "type": "string"
+                  },
+                  "skipLfs": {
+                    "description": "Skip Git LFS downloads when Claude Code clones or updates the marketplace repository. LFS pointer files remain as pointers instead of downloading their content. Use this when the repository contains large LFS objects unrelated to plugin content. Requires Claude Code v2.1.153 or later",
+                    "type": "boolean"
                   },
                   "source": {
                     "const": "git",
@@ -2993,6 +3249,162 @@
                   "path"
                 ],
                 "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "description": "Name of the inline marketplace",
+                    "type": "string"
+                  },
+                  "plugins": {
+                    "description": "Plugins declared inline. Each must reference an external source such as GitHub or npm. You still need to enable each plugin separately in enabledPlugins",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {
+                          "description": "Plugin name",
+                          "type": "string"
+                        },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "ref": {
+                                  "description": "Git branch or tag",
+                                  "type": "string"
+                                },
+                                "repo": {
+                                  "description": "GitHub repository in owner/repo format",
+                                  "type": "string"
+                                },
+                                "sha": {
+                                  "description": "Exact commit SHA to pin the plugin to",
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "const": "github",
+                                  "description": "Identifies the plugin source type",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "repo"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "ref": {
+                                  "description": "Git branch or tag",
+                                  "type": "string"
+                                },
+                                "sha": {
+                                  "description": "Exact commit SHA to pin the plugin to",
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "const": "url",
+                                  "description": "Identifies the plugin source type",
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "description": "Git URL source",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "url"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "path": {
+                                  "description": "Subdirectory within the git repo. Clones sparsely to minimize bandwidth for monorepos",
+                                  "type": "string"
+                                },
+                                "ref": {
+                                  "description": "Git branch or tag",
+                                  "type": "string"
+                                },
+                                "sha": {
+                                  "description": "Exact commit SHA to pin the plugin to",
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "const": "git-subdir",
+                                  "description": "Identifies the plugin source type",
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "description": "Git repository URL",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "url",
+                                "path"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "package": {
+                                  "description": "npm package name (supports scoped packages)",
+                                  "type": "string"
+                                },
+                                "registry": {
+                                  "description": "npm registry URL",
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "const": "npm",
+                                  "description": "Identifies the plugin source type",
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "description": "Package version",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "package"
+                              ],
+                              "type": "object"
+                            }
+                          ],
+                          "description": "External source the plugin is fetched from. Inline plugins must reference external sources such as GitHub or npm, not relative paths"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "source"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "source": {
+                    "const": "settings",
+                    "description": "Identifies the marketplace source type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "source",
+                  "name",
+                  "plugins"
+                ],
+                "type": "object"
               }
             ],
             "description": "Where to fetch the marketplace from"
@@ -3016,7 +3428,7 @@
     },
     "fastMode": {
       "default": false,
-      "description": "Enable fast mode, which uses Claude Opus 4.8 by default (since v2.1.154) for faster output at higher per-token cost without downgrading to a smaller model. Requires extra usage enabled. Toggle with the /fast command. Available on Opus 4.8 and Opus 4.7 (Opus 4.7 fast mode deprecated June 2026). See https://code.claude.com/docs/en/fast-mode",
+      "description": "Enable fast mode, which uses Claude Opus 5 by default (since v2.1.219) for faster output at higher per-token cost without downgrading to a smaller model. Requires extra usage enabled. Toggle with the /fast command. Supported on Opus 5 and Opus 4.8; fast mode for Opus 4.7 was deprecated on June 25, 2026 and removed on July 24, 2026. Before v2.1.219 fast mode defaulted to Opus 4.8 (v2.1.154 through v2.1.218) and to Opus 4.7 (v2.1.142 through v2.1.153). See https://code.claude.com/docs/en/fast-mode",
       "type": "boolean"
     },
     "fastModePerSessionOptIn": {
@@ -3095,11 +3507,19 @@
       },
       "type": "array"
     },
+    "forceLoginGatewayUrl": {
+      "description": "Pre-fills and locks the gateway URL on the /login Cloud gateway screen. Either this key or forceLoginMethod: \"gateway\" surfaces that screen; set both so the URL is filled in. Honored only at the managed policy tier; ignored in user and project settings. See https://code.claude.com/docs/en/claude-apps-gateway#set-the-gateway-url",
+      "examples": [
+        "https://claude-gateway.example.com"
+      ],
+      "type": "string"
+    },
     "forceLoginMethod": {
-      "description": "Force a specific login method: \"claudeai\" for Claude Pro/Max, \"console\" for Console billing",
+      "description": "Use \"claudeai\" to restrict login to Claude.ai accounts, \"console\" to restrict login to Claude Console accounts, or \"gateway\" to restrict login to a cloud gateway. On Claude Code v2.1.212 or later, every first-party login path enforces the restriction, including the VS Code extension, the Agent SDK, `claude setup-token`, and /install-github-app; before v2.1.212, only terminal logins enforced it. See https://code.claude.com/docs/en/authentication#restrict-login-to-your-organization",
       "enum": [
         "claudeai",
-        "console"
+        "console",
+        "gateway"
       ],
       "examples": [
         "claudeai"
@@ -3107,12 +3527,23 @@
       "type": "string"
     },
     "forceLoginOrgUUID": {
-      "description": "Organization UUID to use for OAuth login",
+      "description": "Organization UUID to use for OAuth login, or an array of UUIDs to allow several organizations. An empty array fails closed and blocks every login. See https://code.claude.com/docs/en/authentication#restrict-login-to-your-organization",
       "examples": [
         "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
       ],
-      "minLength": 1,
-      "type": "string"
+      "oneOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
     },
     "forceRemoteSettingsRefresh": {
       "description": "(Managed settings only) Block CLI startup until remote managed settings are freshly fetched from the server. If the fetch fails, the CLI exits (fail-closed) rather than continuing with cached settings. When not set, startup continues without waiting for remote settings. See https://code.claude.com/docs/en/server-managed-settings",
@@ -3155,6 +3586,13 @@
         },
         "CwdChanged": {
           "description": "Hooks that run when the working directory changes. Provides cwd (new directory) and previous_cwd. Matchers are ignored; fires on every directory change. See https://code.claude.com/docs/en/hooks#cwdchanged",
+          "items": {
+            "$ref": "#/$defs/hookMatcher"
+          },
+          "type": "array"
+        },
+        "DirectoryAdded": {
+          "description": "UNDOCUMENTED. Hooks that run after /add-dir or the SDK register_repo_root control request registers a new working directory mid-session (added v2.1.219)",
           "items": {
             "$ref": "#/$defs/hookMatcher"
           },
@@ -3409,12 +3847,6 @@
       },
       "type": "array"
     },
-    "maxSkillDescriptionChars": {
-      "default": 1536,
-      "description": "Per-skill character cap on the combined description and when_to_use text in the skill listing Claude sees each turn. Text longer than this is truncated. See https://code.claude.com/docs/en/skills#skill-descriptions-are-cut-short",
-      "exclusiveMinimum": 0,
-      "type": "integer"
-    },
     "minimumVersion": {
       "description": "Minimum Claude Code version to stay on. Prevents downgrades when switching release channels. See https://code.claude.com/docs/en/settings#available-settings",
       "examples": [
@@ -3445,9 +3877,10 @@
       "type": "string"
     },
     "outputStyle": {
-      "description": "Controls the output style for assistant responses. Built-in styles: default, Explanatory, Learning. Custom styles can be added in ~/.claude/output-styles/ or .claude/output-styles/. See https://code.claude.com/docs/en/output-styles",
+      "description": "Controls the output style for assistant responses. Built-in styles: default, Proactive, Explanatory, Learning. Custom styles can be added in ~/.claude/output-styles/ or .claude/output-styles/. See https://code.claude.com/docs/en/output-styles",
       "examples": [
         "default",
+        "Proactive",
         "Explanatory",
         "Learning"
       ],
@@ -3462,6 +3895,11 @@
         "merge"
       ],
       "type": "string"
+    },
+    "permissionExplainerEnabled": {
+      "default": true,
+      "description": "Show a model-generated explanation of the command when you press Ctrl+E on a Bash or PowerShell permission prompt (default: true). Set to false to turn the shortcut off. See https://code.claude.com/docs/en/permissions#permission-system",
+      "type": "boolean"
     },
     "permissions": {
       "additionalProperties": false,
@@ -3516,7 +3954,7 @@
           "uniqueItems": true
         },
         "defaultMode": {
-          "description": "Default permission mode.\n\"default\": prompts on first use.\n\"acceptEdits\": auto-accepts file edits.\n\"plan\": read-only, no modifications.\nUNDOCUMENTED. \"delegate\": coordination-only for agent team leads (agent teams are experimental; enable via CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).\n\"dontAsk\": auto-denies unless pre-approved via permissions.\n\"bypassPermissions\": skips all prompts (use only in isolated environments).\n\"auto\": auto-approves tool calls with background safety checks that verify actions align with your request.\nSee https://code.claude.com/docs/en/permissions",
+          "description": "Default permission mode.\n\"default\": prompts on first use.\nUNDOCUMENTED. \"manual\": accepted alias for \"default\" (the CLI/VS Code/JetBrains UI now labels this mode \"Manual\" as of v2.1.200; permission-modes.md has not yet been updated to mention it).\n\"acceptEdits\": auto-accepts file edits.\n\"plan\": read-only, no modifications.\nUNDOCUMENTED. \"delegate\": coordination-only for agent team leads (agent teams are experimental; enable via CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).\n\"dontAsk\": auto-denies unless pre-approved via permissions.\n\"bypassPermissions\": skips all prompts (use only in isolated environments).\n\"auto\": auto-approves tool calls with background safety checks that verify actions align with your request.\nSee https://code.claude.com/docs/en/permissions",
           "enum": [
             "acceptEdits",
             "bypassPermissions",
@@ -3524,7 +3962,8 @@
             "delegate",
             "dontAsk",
             "plan",
-            "auto"
+            "auto",
+            "manual"
           ],
           "type": "string"
         },
@@ -3689,8 +4128,19 @@
       "description": "Reduce or disable UI animations (spinners, shimmer, flash effects) for accessibility",
       "type": "boolean"
     },
+    "processWrapper": {
+      "description": "Corporate launcher command placed in front of the background processes Claude Code starts. Honored from managed settings, a --settings file, and user settings only; the CLAUDE_CODE_PROCESS_WRAPPER environment variable takes precedence when both are set. Requires Claude Code v2.1.210 or later. See https://code.claude.com/docs/en/corporate-launcher",
+      "examples": [
+        "/opt/corp/launcher --profile claude"
+      ],
+      "type": "string"
+    },
     "remoteControlAtStartup": {
       "description": "Connect Remote Control automatically when each interactive session starts. true = always, false = never, unset = organization default. Requires Claude Code v2.1.119 or later. See https://code.claude.com/docs/en/remote-control#enable-remote-control-for-all-sessions",
+      "type": "boolean"
+    },
+    "requireCoworkFullVmSandbox": {
+      "description": "(Managed settings only) Run Claude's tools inside an isolated virtual machine instead of on your Mac. Disables the desktop app's iOS Simulator pane and Claude's simulator tools entirely, so the pane cannot attach a device while it is set. See https://code.claude.com/docs/en/desktop-ios-simulator#turn-off-simulator-access",
       "type": "boolean"
     },
     "requiredMaximumVersion": {
@@ -3737,6 +4187,11 @@
           "additionalProperties": false,
           "description": "Block sandboxed commands from reading credential files and secret environment variables (v2.1.187+). Entries merge across settings scopes. See https://code.claude.com/docs/en/sandboxing#protect-credentials",
           "properties": {
+            "allowPlaintextInject": {
+              "default": false,
+              "description": "Allow mask substitution on plain HTTP requests as well as TLS-terminated HTTPS. On plain HTTP the upstream identity is unverified and the credential travels in cleartext, so leave this off outside trusted test networks. Only honored from user, managed, or CLI --settings settings, not from .claude/settings.json or .claude/settings.local.json (default: false). Requires Claude Code v2.1.199 or later. See https://code.claude.com/docs/en/sandboxing#protect-credentials",
+              "type": "boolean"
+            },
             "envVars": {
               "description": "Secret environment variable names to unset for sandboxed commands",
               "items": {
@@ -3796,7 +4251,7 @@
         },
         "enableWeakerNetworkIsolation": {
           "default": false,
-          "description": "macOS only. Allow access to the system TLS trust service (com.apple.trustd.agent) in the sandbox. Required for Go-based tools like gh, gcloud, and terraform to verify TLS certificates when using httpProxyPort with a MITM proxy and custom CA. Reduces security by opening a potential data exfiltration path. Default: false. See https://code.claude.com/docs/en/settings#sandbox-settings",
+          "description": "macOS only. Allow access to the system TLS trust service (com.apple.trustd.agent) in the sandbox. Required for Go-based tools like gh, gcloud, and terraform to verify TLS certificates when using httpProxyPort with a MITM proxy and custom CA. Reduces security by opening a potential data exfiltration path. Default: false. See https://code.claude.com/docs/en/sandboxing",
           "type": "boolean"
         },
         "enabled": {
@@ -3866,6 +4321,11 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            "disabled": {
+              "default": false,
+              "description": "Skip filesystem isolation while keeping network isolation: sandboxed commands get unrestricted read and write access to the host filesystem, and network egress stays confined to network.allowedDomains. Only honored from user, managed, or CLI --settings settings (default: false). Requires Claude Code v2.1.216 or later. See https://code.claude.com/docs/en/sandboxing#disable-filesystem-isolation",
+              "type": "boolean"
             }
           },
           "type": "object"
@@ -3944,6 +4404,25 @@
               "maximum": 65535,
               "minimum": 1,
               "type": "integer"
+            },
+            "strictAllowlist": {
+              "description": "UNDOCUMENTED. Deny non-allowlisted hosts for sandboxed commands without prompting (added v2.1.219). See https://code.claude.com/docs/en/sandboxing#network-isolation",
+              "type": "boolean"
+            },
+            "tlsTerminate": {
+              "additionalProperties": false,
+              "description": "Experimental. Terminate TLS inside the sandbox proxy so it can read the contents of HTTPS requests. Required for mask credential substitution. Set {} to generate an ephemeral certificate authority for the session, or set caCertPath and caKeyPath to use your own. Only honored from user, managed, or CLI --settings settings, not from .claude/settings.json or .claude/settings.local.json. Requires Claude Code v2.1.199 or later. See https://code.claude.com/docs/en/sandboxing#protect-credentials",
+              "properties": {
+                "caCertPath": {
+                  "description": "Path to your own certificate authority certificate",
+                  "type": "string"
+                },
+                "caKeyPath": {
+                  "description": "Path to your own certificate authority private key",
+                  "type": "string"
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"
@@ -4000,6 +4479,12 @@
       "maximum": 1,
       "type": "number"
     },
+    "skillListingMaxDescChars": {
+      "default": 1536,
+      "description": "Per-skill character cap on the combined description and when_to_use text in the skill listing Claude sees each turn. Text longer than this is truncated. See https://code.claude.com/docs/en/skills#skill-descriptions-are-cut-short",
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
     "skillOverrides": {
       "additionalProperties": {
         "enum": [
@@ -4028,7 +4513,7 @@
       "type": "boolean"
     },
     "skippedMarketplaces": {
-      "description": "List of marketplace names the user has chosen not to install when prompted",
+      "description": "List of marketplace names the user has chosen not to install when prompted. See https://code.claude.com/docs/en/discover-plugins",
       "items": {
         "minLength": 1,
         "type": "string"
@@ -4036,7 +4521,7 @@
       "type": "array"
     },
     "skippedPlugins": {
-      "description": "List of plugin IDs (plugin@marketplace format) the user has chosen not to install when prompted",
+      "description": "List of plugin IDs (plugin@marketplace format) the user has chosen not to install when prompted. See https://code.claude.com/docs/en/discover-plugins",
       "items": {
         "minLength": 1,
         "type": "string"
@@ -4426,6 +4911,16 @@
       "description": "Disable syntax highlighting in diffs, code blocks, and file previews. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
     },
+    "teammateDefaultModel": {
+      "description": "Default model for agent team teammates when the spawn prompt does not specify one. Set to a model alias such as \"sonnet\", or null to inherit the lead's current /model selection. Appears in /config as Default teammate model. See https://code.claude.com/docs/en/agent-teams",
+      "examples": [
+        "sonnet"
+      ],
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "teammateMode": {
       "default": "in-process",
       "description": "How agent team teammates display: \"auto\" picks split panes in tmux or iTerm2, in-process otherwise; \"iterm2\" (added in v2.1.186) forces iTerm2 native split panes and requires the it2 CLI (it shows an error with the install command if it2 is missing). The default is \"in-process\" (it was \"auto\" before v2.1.179). Agent teams are experimental and disabled by default. Enable them by adding CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS to your settings.json or environment. See https://code.claude.com/docs/en/agent-teams#choose-a-display-mode",
@@ -4491,6 +4986,22 @@
       ],
       "type": "string"
     },
+    "vimInsertModeRemaps": {
+      "additionalProperties": {
+        "description": "Remap target. \"<Esc>\" is the only supported value; other values are ignored",
+        "type": "string"
+      },
+      "description": "Map two-key INSERT-mode sequences to Escape in vim editor mode. Each key is exactly two printable characters typed in sequence, and \"<Esc>\" is the only supported target; other entries are ignored. Read from user, --settings flag, and managed settings only, so a repository's checked-in settings cannot remap your keystrokes. Has no effect unless editorMode is \"vim\". Requires Claude Code v2.1.208 or later. See https://code.claude.com/docs/en/interactive-mode#remap-insert-mode-key-sequences",
+      "examples": [
+        {
+          "jj": "<Esc>"
+        }
+      ],
+      "propertyNames": {
+        "pattern": "^..$"
+      },
+      "type": "object"
+    },
     "voice": {
       "additionalProperties": false,
       "description": "Voice dictation settings: enabled turns dictation on, mode selects \"hold\" or \"tap\", and autoSubmit sends the prompt on key release in hold mode. Written automatically when you run /voice. Requires a Claude.ai account. See https://code.claude.com/docs/en/voice-dictation",
@@ -4526,6 +5037,17 @@
       "default": true,
       "description": "Whether including the keyword \"ultracode\" in a prompt triggers a dynamic workflow. Requires Claude Code v2.1.157 or later. See https://code.claude.com/docs/en/settings#available-settings",
       "type": "boolean"
+    },
+    "workflowSizeGuideline": {
+      "default": "unrestricted",
+      "description": "Sets the agent count Claude aims for in the dynamic workflows it writes. Claude Code sends the value to Claude as advice, not an enforced cap. Accepts \"unrestricted\" (default, which sends no guideline), \"small\", \"medium\", or \"large\". Appears in /config as Dynamic workflow size, and can be set with /config workflowSizeGuideline=small. Requires Claude Code v2.1.202 or later. On v2.1.203 or later the guideline's agent count also replaces the default threshold for the Large workflow warning. See https://code.claude.com/docs/en/workflows#set-a-size-guideline",
+      "enum": [
+        "unrestricted",
+        "small",
+        "medium",
+        "large"
+      ],
+      "type": "string"
     },
     "worktree": {
       "additionalProperties": false,
