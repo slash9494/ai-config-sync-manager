@@ -2961,6 +2961,31 @@ test("agents sync apply refuses a pair of names that resolve to the same agent",
   assert.equal(existsSync(join(fixture.project, ".claude/agents/docs-writer.md")), false);
 });
 
+// The frontmatter name drives the write target, so a file whose stem differs only in case looks
+// like a superseded path — and on a case-insensitive volume removing it deletes the fresh write.
+test("agents sync apply keeps the target when the existing file differs only in filename case", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".claude/agents/docswriter.md"),
+    "---\nname: DocsWriter\ndescription: Example agent\n---\nOld claude content\n"
+  );
+  writeCodexAgent(join(fixture.project, ".codex/agents/docswriter.toml"), {
+    name: "DocsWriter",
+    description: "Example agent",
+    developer_instructions: "New codex content",
+  });
+
+  runCli(fixture, ["sync", "--scope", "project", "--include", "agents", "--apply"], undefined, {
+    AI_CONFIG_SYNC_HOST: "codex",
+  });
+
+  const written = readdirSync(join(fixture.project, ".claude/agents"));
+  assert.equal(written.length, 1, `expected one agent file, got ${written.join(", ")}`);
+  const claudeFile = readFileSync(join(fixture.project, ".claude/agents", written[0]), "utf8");
+  assert.match(claudeFile, /New codex content/);
+});
+
 test("agents sync apply names a Codex agent after its file when the toml omits one", () => {
   const fixture = createFixture();
   mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });

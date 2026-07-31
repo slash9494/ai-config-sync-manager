@@ -4443,7 +4443,7 @@ function applyMergeAgents(plan, operation) {
     // A name whose canonical form changed (":" is now flattened) lands at a new path; leaving the
     // old file behind would enumerate to the same canonical name and never stop reporting a diff.
     const replacedPath =
-      existingAgent && existingAgent.path !== targetPath ? existingAgent.path : null;
+      existingAgent && !isSameFile(existingAgent.path, targetPath) ? existingAgent.path : null;
     const replacedHash = replacedPath ? hashPath(replacedPath) : null;
     const replacedBackup = replacedPath ? backupTargetPath(plan, replacedPath) : null;
     if (replacedPath) backupPath(plan, replacedPath);
@@ -4479,6 +4479,16 @@ function applyMergeAgents(plan, operation) {
       message,
     });
   }
+}
+
+// A case-insensitive volume folds two different-looking paths onto one inode, so comparing the
+// strings alone would call the write target "superseded" and delete the bytes just written to it.
+function isSameFile(left, right) {
+  if (left === right) return true;
+  if (!existsSync(left) || !existsSync(right)) return false;
+  const leftStat = lstatSync(left);
+  const rightStat = lstatSync(right);
+  return leftStat.dev === rightStat.dev && leftStat.ino === rightStat.ino;
 }
 
 function applyMergeSettingsItems(plan, operation) {
