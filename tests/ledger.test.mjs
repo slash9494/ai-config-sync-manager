@@ -164,6 +164,35 @@ test("sync apply ledger records a merged agent file per item", () => {
   assert.match(item.after_hash, SHA256);
 });
 
+test("sync apply ledger attests the write target, not the superseded path, on a flattened name", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });
+  mkdirSync(join(fixture.project, ".codex/agents"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".claude/agents/docs:writer.md"),
+    "---\nname: docs:writer\ndescription: writes\n---\nOld body.\n"
+  );
+  writeFileSync(
+    join(fixture.project, ".codex/agents/docs-writer.toml"),
+    'name = "docs:writer"\ndescription = "writes"\ndeveloper_instructions = "New body."\n'
+  );
+
+  const ledger = applyWithLedgerJson(fixture, "agents:docs-writer", {
+    AI_CONFIG_SYNC_HOST: "codex",
+  });
+  const applied = ledger.items.find((entry) => entry.action === "merge-agents");
+  const removed = ledger.items.find((entry) => entry.action === "delete-items");
+
+  assert.ok(applied, "expected a merge-agents ledger entry");
+  assert.ok(removed, "expected a delete-items ledger entry for the superseded path");
+  assert.equal(applied.before_hash, null);
+  assert.equal(applied.backup_path, null);
+  assert.match(applied.after_hash, SHA256);
+  assert.match(removed.before_hash, SHA256);
+  assert.equal(removed.after_hash, null);
+  assert.equal(existsSync(removed.backup_path), true, `backup missing: ${removed.backup_path}`);
+});
+
 test("apply ledger records vocab-fix rewrites", () => {
   const fixture = createFixture();
   mkdirSync(join(fixture.project, ".claude/agents"), { recursive: true });

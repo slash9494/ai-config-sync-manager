@@ -4378,9 +4378,11 @@ function applyMergeAgents(plan, operation) {
         callArchive: plan.callArchive,
       });
       mkdirSync(dirname(targetPath), { recursive: true });
-      const beforeHash = hashPath(existingAgent ? existingAgent.path : targetPath);
-      const backupPathTaken = existingAgent ? backupTargetPath(plan, existingAgent.path) : null;
-      if (existingAgent) backupPath(plan, existingAgent.path);
+      // The match is by agent name, so the existing file can sit at another path than the write
+      // target; the ledger must attest the bytes actually about to be overwritten.
+      const beforeHash = hashPath(targetPath);
+      const backupPathTaken = backupTargetPath(plan, targetPath);
+      backupPath(plan, targetPath);
       writeFileSync(targetPath, serializeCodexAgentFile(codexFields));
       const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
       plan.results.push({ status: "applied", message });
@@ -4438,14 +4440,19 @@ function applyMergeAgents(plan, operation) {
       callArchive: plan.callArchive,
     });
     mkdirSync(dirname(targetPath), { recursive: true });
-    const beforeHash = hashPath(existingAgent ? existingAgent.path : targetPath);
-    const backupPathTaken = existingAgent ? backupTargetPath(plan, existingAgent.path) : null;
-    if (existingAgent) backupPath(plan, existingAgent.path);
-    writeFileSync(targetPath, serializeClaudeAgentFile(claude.frontmatter, claude.body));
     // A name whose canonical form changed (":" is now flattened) lands at a new path; leaving the
     // old file behind would enumerate to the same canonical name and never stop reporting a diff.
     const replacedPath =
       existingAgent && existingAgent.path !== targetPath ? existingAgent.path : null;
+    const replacedHash = replacedPath ? hashPath(replacedPath) : null;
+    const replacedBackup = replacedPath ? backupTargetPath(plan, replacedPath) : null;
+    if (replacedPath) backupPath(plan, replacedPath);
+    // Hash and back up the write target itself, not the superseded path: on a rename the two are
+    // different files, and a ledger before-state that names the other one restores the wrong bytes.
+    const beforeHash = hashPath(targetPath);
+    const backupPathTaken = backupTargetPath(plan, targetPath);
+    backupPath(plan, targetPath);
+    writeFileSync(targetPath, serializeClaudeAgentFile(claude.frontmatter, claude.body));
     if (replacedPath) {
       rmSync(replacedPath, { force: true });
       recordLedger(plan, {
@@ -4454,8 +4461,8 @@ function applyMergeAgents(plan, operation) {
         action: "delete-items",
         status: "applied",
         target: replacedPath,
-        beforeHash,
-        backupPath: backupPathTaken,
+        beforeHash: replacedHash,
+        backupPath: replacedBackup,
         message: `removed superseded agent path ${replacedPath}`,
       });
     }
