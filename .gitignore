@@ -49,6 +49,7 @@ _workspace/
 # Agent
 .claude/
 .codex/
+.coderabbit/
 
 # Test fixtures simulate $HOME — keep their dotdirs tracked
 !tests/integration/fixtures/**/.claude/
