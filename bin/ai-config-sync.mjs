@@ -4291,8 +4291,7 @@ function applyCopyMissingSkills(plan, operation) {
   }
 }
 
-// Names differing only in a separator ("docs:writer" and "docs-writer") canonicalize to one key, so
-// a plain Map would keep whichever readdir returned last and copy it over the other agent's body.
+// Two names canonicalizing to one key would let a plain Map copy one agent's body over the other.
 function indexAgentsByName(agents) {
   const index = new Map();
   const collisions = new Map();
@@ -4378,8 +4377,7 @@ function applyMergeAgents(plan, operation) {
         callArchive: plan.callArchive,
       });
       mkdirSync(dirname(targetPath), { recursive: true });
-      // The match is by agent name, so the existing file can sit at another path than the write
-      // target; the ledger must attest the bytes actually about to be overwritten.
+      // Matching is by name, so the existing file can sit elsewhere than the path being written.
       const beforeHash = hashPath(targetPath);
       const backupPathTaken = backupTargetPath(plan, targetPath);
       backupPath(plan, targetPath);
@@ -4440,15 +4438,13 @@ function applyMergeAgents(plan, operation) {
       callArchive: plan.callArchive,
     });
     mkdirSync(dirname(targetPath), { recursive: true });
-    // A name whose canonical form changed (":" is now flattened) lands at a new path; leaving the
-    // old file behind would enumerate to the same canonical name and never stop reporting a diff.
+    // The old file would enumerate to the same canonical name and never stop reporting a diff.
     const replacedPath =
       existingAgent && !isSameFile(existingAgent.path, targetPath) ? existingAgent.path : null;
     const replacedHash = replacedPath ? hashPath(replacedPath) : null;
     const replacedBackup = replacedPath ? backupTargetPath(plan, replacedPath) : null;
     if (replacedPath) backupPath(plan, replacedPath);
-    // Hash and back up the write target itself, not the superseded path: on a rename the two are
-    // different files, and a ledger before-state that names the other one restores the wrong bytes.
+    // On a rename these are two files, and a before-state naming the other restores wrong bytes.
     const beforeHash = hashPath(targetPath);
     const backupPathTaken = backupTargetPath(plan, targetPath);
     backupPath(plan, targetPath);
@@ -4481,8 +4477,7 @@ function applyMergeAgents(plan, operation) {
   }
 }
 
-// A case-insensitive volume folds two different-looking paths onto one inode, so comparing the
-// strings alone would call the write target "superseded" and delete the bytes just written to it.
+// Case-insensitive volumes fold both paths onto one inode, so string equality would delete the write.
 function isSameFile(left, right) {
   if (left === right) return true;
   if (!existsSync(left) || !existsSync(right)) return false;
@@ -6839,9 +6834,7 @@ function canonicalAgentName(rawName, fallbackStem) {
   return source.replace(/[/:]/g, "-");
 }
 
-// Claude keeps "/" in an agent name (harness grouping) but has rejected ":" since CLI 2.1.218,
-// where it is reserved for plugin namespacing — so this is deliberately narrower than the flat
-// file-name form canonicalAgentName produces.
+// Claude groups agents on "/" but has reserved ":" for plugin namespacing since CLI 2.1.218.
 function claudeSafeAgentName(rawName, fallbackStem) {
   const candidate = typeof rawName === "string" ? rawName.trim() : "";
   return (candidate || fallbackStem || "").replace(/:/g, "-");
