@@ -7,9 +7,11 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { hashBytes } from "../bin/util/ledger-hash.mjs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import test from "node:test";
@@ -177,6 +179,12 @@ test("sync apply ledger attests the write target, not the superseded path, on a 
     'name = "docs:writer"\ndescription = "writes"\ndeveloper_instructions = "New body."\n'
   );
 
+  // The CLI resolves cwd, so ledger targets carry the real path while the fixture holds the symlinked one.
+  const agentsDir = realpathSync(join(fixture.project, ".claude/agents"));
+  const supersededPath = join(agentsDir, "docs:writer.md");
+  const flattenedPath = join(agentsDir, "docs-writer.md");
+  const supersededBytes = readFileSync(supersededPath);
+
   const ledger = applyWithLedgerJson(fixture, "agents:docs-writer", {
     AI_CONFIG_SYNC_HOST: "codex",
   });
@@ -185,12 +193,21 @@ test("sync apply ledger attests the write target, not the superseded path, on a 
 
   assert.ok(applied, "expected a merge-agents ledger entry");
   assert.ok(removed, "expected a delete-items ledger entry for the superseded path");
+  assert.equal(applied.status, "applied");
+  assert.equal(removed.status, "applied");
+  // The frozen ledger shape carries no target field, so the path it acted on is only in the message.
+  assert.equal(applied.message, `replaced agent docs-writer -> ${flattenedPath}`);
+  assert.equal(removed.message, `removed superseded agent path ${supersededPath}`);
+  assert.equal(existsSync(flattenedPath), true, "flattened agent file should exist");
+  assert.equal(existsSync(supersededPath), false, "superseded agent file should be gone");
+  assert.match(readFileSync(flattenedPath, "utf8"), /New body\./);
+
   assert.equal(applied.before_hash, null);
   assert.equal(applied.backup_path, null);
-  assert.match(applied.after_hash, SHA256);
-  assert.match(removed.before_hash, SHA256);
+  assert.equal(applied.after_hash, hashBytes(readFileSync(flattenedPath)));
+  assert.equal(removed.before_hash, hashBytes(supersededBytes));
   assert.equal(removed.after_hash, null);
-  assert.equal(existsSync(removed.backup_path), true, `backup missing: ${removed.backup_path}`);
+  assert.deepEqual(readFileSync(removed.backup_path), supersededBytes);
 });
 
 test("apply ledger records vocab-fix rewrites", () => {
