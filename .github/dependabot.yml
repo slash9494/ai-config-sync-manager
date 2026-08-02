@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # 액션 SHA 핀 자동 갱신 — 오염된 액션 차단의 핵심
+  # Keeps the action SHA pins current; a stale pin is what lets a compromised action through.
   - package-ecosystem: github-actions
     directory: /
     schedule:

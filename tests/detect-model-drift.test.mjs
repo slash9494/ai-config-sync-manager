@@ -43,7 +43,7 @@ test("stale tier surfaces when Opus bumps past the recorded version", () => {
   const drift = findModelDrift(prose, TIERS);
   assert.equal(drift.length, 1);
   assert.equal(drift[0].tierId, "latest-frontier-model");
-  assert.match(drift[0].note, /갱신/);
+  assert.match(drift[0].note, /terms/);
 });
 
 test("Fable is intentionally excluded from detection", () => {
