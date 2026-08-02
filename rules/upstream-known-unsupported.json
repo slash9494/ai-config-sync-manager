@@ -42,6 +42,17 @@
       "schema_desc_hash": "4fbc393ee032",
       "recheck_after": "2026-10-09"
     },
+    "askUserQuestionTimeout": {
+      "reason": "Claude Code dialog idle timeout; Codex has no interactive-question timeout setting.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "1a7f7b74ef0f",
+      "recheck_after": "2026-10-31"
+    },
     "autoCompactEnabled": {
       "reason": "Claude Code client feature toggle; no Codex config equivalent.",
       "decided_in": "#31",
@@ -52,6 +63,28 @@
       },
       "schema_desc_hash": "88eb11f3499e",
       "recheck_after": "2026-10-09"
+    },
+    "autoConnectIde": {
+      "reason": "Claude Code IDE attach behaviour; Codex config has no IDE connection surface.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "8da9a7326f29",
+      "recheck_after": "2026-10-31"
+    },
+    "autoInstallIdeExtension": {
+      "reason": "Claude Code IDE extension installer; Codex ships no editor extension to install.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "be7c4f6a6600",
+      "recheck_after": "2026-10-31"
     },
     "autoScrollEnabled": {
       "reason": "Claude Code TUI display preference; no Codex config equivalent.",
@@ -86,6 +119,17 @@
       "schema_desc_hash": "1765e193ccba",
       "recheck_after": "2026-10-09"
     },
+    "browserExternalPageTools": {
+      "reason": "Managed toggle for the Claude desktop app Browser pane; Codex has no browser pane.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "e0ca0ede5d35",
+      "recheck_after": "2026-10-31"
+    },
     "claudeMd": {
       "reason": "Claude Code CLAUDE.md loading toggle; host-specific memory-file handling, no Codex config key.",
       "decided_in": "#31",
@@ -96,6 +140,17 @@
       },
       "schema_desc_hash": "c052ced890c7",
       "recheck_after": "2026-10-09"
+    },
+    "diffTool": {
+      "reason": "Claude Code diff viewer routing between IDE and terminal; Codex renders diffs in its own TUI only.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "46a7c5b6ce56",
+      "recheck_after": "2026-10-31"
     },
     "disableAgentView": {
       "reason": "Claude Code TUI feature toggle; no Codex config equivalent.",
@@ -130,6 +185,17 @@
       "schema_desc_hash": "04090592190c",
       "recheck_after": "2026-10-09"
     },
+    "disableBrowserExternalNavigation": {
+      "reason": "Managed toggle for the Claude desktop app Browser pane; Codex has no browser pane.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "5f821da4fcc3",
+      "recheck_after": "2026-10-31"
+    },
     "disableBundledSkills": {
       "reason": "Claude Code client feature toggle; no Codex config equivalent.",
       "decided_in": "#31",
@@ -152,6 +218,17 @@
       "schema_desc_hash": "26e2cd7b10e6",
       "recheck_after": "2026-10-09"
     },
+    "disableMobileSimulatorTools": {
+      "reason": "Managed toggle for the Claude desktop app iOS Simulator pane; Codex has no simulator surface.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "643d68c913dc",
+      "recheck_after": "2026-10-31"
+    },
     "disableRemoteControl": {
       "reason": "Claude Code client feature toggle; no Codex config equivalent.",
       "decided_in": "#31",
@@ -162,6 +239,17 @@
       },
       "schema_desc_hash": "c69cc696e60d",
       "recheck_after": "2026-10-09"
+    },
+    "disableSideloadFlags": {
+      "reason": "Rejects Claude Code CLI sideload flags at startup; Codex has no equivalent startup flag denylist.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "adfe9ec70e57",
+      "recheck_after": "2026-10-31"
     },
     "disableWorkflows": {
       "reason": "Claude Code client feature toggle; no Codex config equivalent.",
@@ -185,6 +273,28 @@
       "schema_desc_hash": "fd8a2bd756ba",
       "recheck_after": "2026-10-09"
     },
+    "emojiCompletionEnabled": {
+      "reason": "Claude Code prompt-input emoji completion; Codex TUI has no shortcode completion.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "a1fc66dee04e",
+      "recheck_after": "2026-10-31"
+    },
+    "enableArtifact": {
+      "reason": "Per-user toggle for the Claude Artifact tool; Codex has no Artifact tool.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "7571f047184f",
+      "recheck_after": "2026-10-31"
+    },
     "enforceAvailableModels": {
       "reason": "Claude Code client model-allowlist enforcement toggle; not the cross-host agent tier mapping.",
       "decided_in": "#31",
@@ -195,6 +305,17 @@
       },
       "schema_desc_hash": "0ee032653c74",
       "recheck_after": "2026-10-09"
+    },
+    "externalEditorContext": {
+      "reason": "Claude Code external-editor prefill behaviour; Codex opens the editor with the buffer only.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f709980b121e",
+      "recheck_after": "2026-10-31"
     },
     "fallbackModel": {
       "reason": "Claude Code client fallback-model preference; not the cross-host agent tier mapping.",
@@ -228,6 +349,17 @@
       },
       "schema_desc_hash": "4c386886a2ef",
       "recheck_after": "2026-10-09"
+    },
+    "forceLoginGatewayUrl": {
+      "reason": "Pins the Claude Code login gateway URL; Codex authenticates against ChatGPT and has no gateway screen.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "6ca80cf323b5",
+      "recheck_after": "2026-10-31"
     },
     "gcpAuthRefresh": {
       "reason": "Claude Code GCP auth-refresh toggle; no Codex config equivalent.",
@@ -273,16 +405,16 @@
       "schema_desc_hash": "25e8467fb566",
       "recheck_after": "2026-10-09"
     },
-    "maxSkillDescriptionChars": {
-      "reason": "Claude Code client skill-listing sizing knob; no Codex config equivalent.",
-      "decided_in": "#31",
-      "decided_at": "2026-07-11",
+    "permissionExplainerEnabled": {
+      "reason": "Claude Code permission-prompt explanation shortcut; Codex approval prompts have no explainer.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
       "direction": {
         "claude_to_codex": "drop",
         "codex_to_claude": "drop"
       },
-      "schema_desc_hash": "51eee94a53b0",
-      "recheck_after": "2026-10-09"
+      "schema_desc_hash": "181d8a4145bf",
+      "recheck_after": "2026-10-31"
     },
     "pluginSuggestionMarketplaces": {
       "reason": "Claude Code client plugin-suggestion source list; no Codex config equivalent.",
@@ -317,6 +449,17 @@
       "schema_desc_hash": "f512cff83bf2",
       "recheck_after": "2026-10-09"
     },
+    "processWrapper": {
+      "reason": "Corporate launcher prefixed to Claude Code background processes; Codex has no process wrapper setting.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "3f664a471fae",
+      "recheck_after": "2026-10-31"
+    },
     "remoteControlAtStartup": {
       "reason": "Claude Code client feature toggle; no Codex config equivalent.",
       "decided_in": "#31",
@@ -327,6 +470,17 @@
       },
       "schema_desc_hash": "3587129d6f77",
       "recheck_after": "2026-10-09"
+    },
+    "requireCoworkFullVmSandbox": {
+      "reason": "Managed macOS VM isolation for Claude tools; Codex sandbox_mode selects what is writable, not where the process runs, so the two are not substitutable.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "9cbc6a2cbf94",
+      "recheck_after": "2026-10-31"
     },
     "requiredMaximumVersion": {
       "reason": "Claude Code client version gate; no Codex config equivalent.",
@@ -371,6 +525,17 @@
       },
       "schema_desc_hash": "c4c7f16527ed",
       "recheck_after": "2026-10-09"
+    },
+    "skillListingMaxDescChars": {
+      "reason": "Claude Code client skill-listing sizing knob; no Codex config equivalent. Renamed from maxSkillDescriptionChars in CLI 2.1.219 with identical description, default and type.",
+      "decided_in": "#31, renamed in #45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "51eee94a53b0",
+      "recheck_after": "2026-10-31"
     },
     "sshConfigs": {
       "reason": "Claude Desktop managed SSH-connection setting; no Codex config equivalent.",
@@ -427,6 +592,17 @@
       "schema_desc_hash": "c985dca794dd",
       "recheck_after": "2026-10-09"
     },
+    "vimInsertModeRemaps": {
+      "reason": "Claude Code vim INSERT-mode two-key escape remaps; the Codex vim keymap has no INSERT-mode remap table.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "ed1c1408243f",
+      "recheck_after": "2026-10-31"
+    },
     "voice": {
       "reason": "Claude Code voice-dictation setting; no Codex config equivalent.",
       "decided_in": "#31",
@@ -459,6 +635,17 @@
       },
       "schema_desc_hash": "551deed90063",
       "recheck_after": "2026-10-09"
+    },
+    "workflowSizeGuideline": {
+      "reason": "Advisory agent count for Claude-authored dynamic workflows; Codex has no workflow authoring surface.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c45d72b1ab5e",
+      "recheck_after": "2026-10-31"
     }
   },
   "claude_nested": {},
@@ -586,6 +773,27 @@
       "schema_desc_hash": "019e10488254",
       "recheck_after": "2027-01-02"
     },
+    "CodeModeHostConfigToml.disable_in_process_fallback": {
+      "reason": "Codex code-mode in-process fallback switch; Claude has no code-mode execution surface.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "d3770dead383",
+      "recheck_after": "2027-01-29"
+    },
+    "CodeModeHostConfigToml.enabled": {
+      "reason": "Codex code-mode host toggle; Claude has no code-mode execution surface.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-29"
+    },
     "CurrentTimeReminderConfigToml.clock_source": {
       "reason": "Codex-internal current-time reminder injection; no Claude equivalent.",
       "decided_in": "#24",
@@ -647,6 +855,17 @@
       "schema_desc_hash": "9e9d01fcc8fd",
       "recheck_after": "2027-01-07"
     },
+    "ModelProviderInfo.supports_standalone_web_search": {
+      "reason": "Declares a Codex model provider capability; Claude exposes WebSearch as a tool, not a per-provider capability flag.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "28df2bc50448",
+      "recheck_after": "2027-01-29"
+    },
     "MultiAgentV2ConfigToml.expose_spawn_agent_model_overrides": {
       "reason": "Codex multi-agent v2 spawn-tool surface control; Claude has no multi-agent v2 backend. Same family as multi_agent_mode_hint_text.",
       "decided_in": "#33",
@@ -667,6 +886,38 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-01-07"
+    },
+    "MultiAgentV2ConfigToml.wait_agent_enabled": {
+      "reason": "Codex multi-agent wait tool toggle; Claude subagents are awaited by the harness with no settings switch.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "3d17f2950f35",
+      "recheck_after": "2027-01-29"
+    },
+    "NonPrefixedMcpToolNamesConfigToml.enabled": {
+      "reason": "Lets Codex expose MCP tools without a server prefix; Claude always namespaces MCP tools as mcp__<server>__<tool> and cannot opt out.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-29"
+    },
+    "NonPrefixedMcpToolNamesConfigToml.server_names": {
+      "reason": "Per-server list for Codex unprefixed MCP tool names; Claude always namespaces MCP tools and cannot opt out.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "7af63e454a84",
+      "recheck_after": "2027-01-29"
     },
     "OrchestratorFeatureToml.enabled": {
       "reason": "Codex-internal orchestrator feature toggle; see codex_top_level.orchestrator.",
@@ -759,6 +1010,17 @@
       },
       "recheck_after": "2027-01-02"
     },
+    "ShellEnvironmentPolicyToml.filters": {
+      "reason": "Codex shell environment filter patterns; Claude sets env vars via settings.env and has no filter policy.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "237c51b16abd",
+      "recheck_after": "2027-01-29"
+    },
     "TokenBudgetConfigToml.auto_compact_fallback_buffer_tokens": {
       "reason": "Codex auto-compact fallback token reserve; Claude autoCompactEnabled is an on/off toggle with no budget tuning. Same family as reminder_threshold_tokens.",
       "decided_in": "#33",
@@ -824,6 +1086,16 @@
       "schema_desc_hash": "1b8616062e5e",
       "recheck_after": "2027-01-02"
     },
+    "ToolsToml.update_plan": {
+      "reason": "Enables the Codex update_plan tool; Claude plan mode is a session mode, not a toggleable tool.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-29"
+    },
     "Tui.resume_cwd": {
       "reason": "Codex TUI working-directory preference for resume and fork; Claude resume has no equivalent settings key.",
       "decided_in": "#33",
@@ -834,6 +1106,27 @@
       },
       "schema_desc_hash": "09bac73e37da",
       "recheck_after": "2027-01-25"
+    },
+    "TuiGlobalKeymap.toggle_side_conversation": {
+      "reason": "Codex TUI keybinding; Claude Code keybindings are not expressed in settings.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f1a78688067c",
+      "recheck_after": "2027-01-29"
+    },
+    "UpdatePlanToolConfig.enabled": {
+      "reason": "Codex update_plan tool config; Claude plan mode is a session mode, not a toggleable tool.",
+      "decided_in": "#45",
+      "decided_at": "2026-08-02",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-01-29"
     }
   }
 }

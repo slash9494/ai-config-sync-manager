@@ -1,24 +1,84 @@
 {
   "version": "0.2",
   "fields": [
-    { "claude": "name", "codex": "name", "level": "exact" },
-    { "claude": "description", "codex": "description", "level": "exact" },
-    { "claude": "body", "codex": "developer_instructions", "level": "equivalent" },
-    { "claude": "model", "codex": "model", "level": "approximate", "alias_table": "models.tiers" },
-    { "claude": "tools", "codex": "sandbox_mode", "level": "approximate", "map": "sandbox_modes" },
-    { "claude": "color", "codex": null, "level": "metadata-only" },
-    { "claude": "memory", "codex": null, "level": "metadata-only" },
-    { "claude": null, "codex": "model_reasoning_effort", "level": "metadata-only" }
+    {
+      "claude": "name",
+      "codex": "name",
+      "level": "exact"
+    },
+    {
+      "claude": "description",
+      "codex": "description",
+      "level": "exact"
+    },
+    {
+      "claude": "body",
+      "codex": "developer_instructions",
+      "level": "equivalent"
+    },
+    {
+      "claude": "model",
+      "codex": "model",
+      "level": "approximate",
+      "alias_table": "models.tiers"
+    },
+    {
+      "claude": "tools",
+      "codex": "sandbox_mode",
+      "level": "approximate",
+      "map": "sandbox_modes"
+    },
+    {
+      "claude": "color",
+      "codex": null,
+      "level": "metadata-only"
+    },
+    {
+      "claude": "memory",
+      "codex": null,
+      "level": "metadata-only"
+    },
+    {
+      "claude": null,
+      "codex": "model_reasoning_effort",
+      "level": "metadata-only"
+    }
   ],
   "sandbox_modes": {
     "read-only": {
-      "claude": { "tools": ["Read", "Grep", "Glob"] }
+      "claude": {
+        "tools": [
+          "Read",
+          "Grep",
+          "Glob"
+        ]
+      }
     },
     "workspace-write": {
-      "claude": { "tools": ["Bash", "Edit", "MultiEdit", "Read", "Grep", "Glob", "Write"] }
+      "claude": {
+        "tools": [
+          "Bash",
+          "Edit",
+          "MultiEdit",
+          "Read",
+          "Grep",
+          "Glob",
+          "Write"
+        ]
+      }
     },
     "danger-full-access": {
-      "claude": { "tools": ["Bash", "Edit", "MultiEdit", "Read", "Grep", "Glob", "Write"] }
+      "claude": {
+        "tools": [
+          "Bash",
+          "Edit",
+          "MultiEdit",
+          "Read",
+          "Grep",
+          "Glob",
+          "Write"
+        ]
+      }
     }
   },
   "models": {
@@ -28,11 +88,20 @@
         "id": "mythos-class-model",
         "claude": {
           "alias": "fable",
-          "terms": ["fable(latest)", "Claude Fable 5", "Fable 5", "Fable"]
+          "terms": [
+            "claude-fable-5",
+            "fable(latest)",
+            "Claude Fable 5",
+            "Fable 5",
+            "Fable"
+          ]
         },
         "codex": {
           "alias": "gpt-5.6-sol",
-          "terms": ["GPT-5.6 Sol", "GPT-5.6-Sol"]
+          "terms": [
+            "GPT-5.6 Sol",
+            "GPT-5.6-Sol"
+          ]
         }
       },
       {
@@ -40,6 +109,8 @@
         "claude": {
           "alias": "opus",
           "terms": [
+            "claude-opus-4-8",
+            "claude-opus-5",
             "opus(latest)",
             "opus4.8(latest)",
             "opus 4.8 latest",
@@ -74,22 +145,46 @@
         "id": "balanced-model",
         "claude": {
           "alias": "sonnet",
-          "terms": ["sonnet(latest)", "Claude Sonnet 5", "Claude Sonnet", "Sonnet 5", "Sonnet"]
+          "terms": [
+            "claude-sonnet-5",
+            "sonnet(latest)",
+            "Claude Sonnet 5",
+            "Claude Sonnet",
+            "Sonnet 5",
+            "Sonnet"
+          ]
         },
         "codex": {
           "alias": "gpt-5.6-luna",
-          "terms": ["gpt-5.4", "gpt-5.3-codex-spark", "gpt-5.1-codex-mini", "GPT-5.6 Luna", "GPT-5.6-Luna", "GPT-5.4"]
+          "terms": [
+            "gpt-5.4",
+            "gpt-5.3-codex-spark",
+            "gpt-5.1-codex-mini",
+            "GPT-5.6 Luna",
+            "GPT-5.6-Luna",
+            "GPT-5.4"
+          ]
         }
       },
       {
         "id": "small-fast-model",
         "claude": {
           "alias": "haiku",
-          "terms": ["haiku(latest)", "Claude Haiku 4.5", "Claude Haiku", "Haiku 4.5", "Haiku"]
+          "terms": [
+            "claude-haiku-4-5",
+            "claude-haiku-4-5-20251001",
+            "haiku(latest)",
+            "Claude Haiku 4.5",
+            "Claude Haiku",
+            "Haiku 4.5",
+            "Haiku"
+          ]
         },
         "codex": {
           "alias": "gpt-5.4-mini",
-          "terms": ["GPT-5.4-Mini"]
+          "terms": [
+            "GPT-5.4-Mini"
+          ]
         }
       }
     ]
