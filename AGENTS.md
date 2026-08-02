@@ -35,7 +35,7 @@ import { yamlScalarRequiresQuoting } from "../bin/util/yaml-scalar.mjs";
 - ESM only. `.mjs` extension is required in import paths.
 - double quotes, semicolons, function declarations.
 - **No new external runtime dependencies** (zero-runtime-deps policy; devDependencies are allowed).
-- Comments: one WHY line only. No WHAT or task references.
+- Comments: one WHY line only — one reason, on one physical line, never wrapped onto a second. No WHAT or task references. If it does not fit, restate the reason more tersely; do not wrap. Comments written before this rule are still wrapped, so rewrite one only when you are already changing that code.
 - Splitting `bin/ai-config-sync.mjs` is on hold. Cross-cutting helpers may be extracted into a separate `.mjs` under `bin/util/` (`yaml-scalar.mjs` is the precedent).
 
 ---
