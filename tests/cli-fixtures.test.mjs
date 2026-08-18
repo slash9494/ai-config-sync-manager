@@ -314,6 +314,198 @@ test("global MCP sync maps Claude Authorization header to Codex bearer_token_env
   assert.equal(report.entries.length, 0);
 });
 
+test("global MCP sync preserves non-Authorization http headers as Codex http_headers", () => {
+  // Streamable-http servers carry custom headers (e.g. an API key) that are not a
+  // Bearer token. These must round-trip into Codex as `http_headers`, otherwise the
+  // synced server loses its credential and Codex cannot authenticate.
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: {
+      context7: {
+        type: "http",
+        url: "https://mcp.context7.com/mcp",
+        headers: { CONTEXT7_API_KEY: "ctx7sk-test-key" },
+      },
+    },
+  });
+  writeFileSync(join(fixture.home, ".codex/config.toml"), "");
+
+  const output = runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:context7",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(output, /merged MCP servers claude -> codex: context7/);
+  assert.match(config, /\[mcp_servers\.context7\]/);
+  assert.match(config, /http_headers = \{ CONTEXT7_API_KEY = "ctx7sk-test-key" \}/);
+
+  // Reading the rendered header back must report parity, otherwise status loops forever.
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "global", "--include", "mcp:context7", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
+test("global MCP sync strips a pre-existing [mcp_servers.X.env] sub-table so the merge does not duplicate keys", () => {
+  // A hand-placed env-only sub-table outside the managed block defines the same
+  // `mcp_servers.X.env` key the managed block re-emits inline. Without stripping it,
+  // Codex's strict TOML parser rejects the file with a duplicate-key error.
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.databar.env]",
+      'DATABAR_API_KEY = "stale-value"',
+      "",
+      "[mcp_servers.databar.tools.search]",
+      "enabled = true",
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: {
+      databar: {
+        command: "node",
+        args: ["databar.js"],
+        env: { DATABAR_API_KEY: "fresh-value" },
+      },
+    },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:databar",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  const count = (re) => (config.match(re) ?? []).length;
+  // The orphan env sub-table must be gone (the managed block owns env inline now).
+  assert.equal(count(/^\[mcp_servers\.databar\.env\]/gm), 0);
+  // Exactly one canonical table for the server — no duplicate definition.
+  assert.equal(count(/^\[mcp_servers\.databar\]/gm), 1);
+  assert.match(config, /env = \{ DATABAR_API_KEY = "fresh-value" \}/);
+  // Tool-permission sub-tables are user config the merge must preserve.
+  assert.match(config, /^\[mcp_servers\.databar\.tools\.search\]/m);
+});
+
+test("global MCP sync strips an adjacent [mcp_servers.X.env] sub-table that directly follows the base table", () => {
+  // Regression for a strip-regex bug: when a server's own base table is directly
+  // followed (one blank line apart) by its `.env` sub-table, the base table's
+  // greedy trailing match consumed the separator the sub-table needed as its own
+  // anchor, leaving the sub-table (and its secret) unstripped and producing a
+  // duplicate-key config.toml on the next merge.
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.databar]",
+      'command = "node"',
+      'args = ["databar.js"]',
+      "",
+      "[mcp_servers.databar.env]",
+      'DATABAR_API_KEY = "stale-value"',
+      "",
+      "[mcp_servers.databar.http_headers]",
+      'X-Extra = "stale-header"',
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: {
+      databar: {
+        command: "node",
+        args: ["databar.js"],
+        env: { DATABAR_API_KEY: "fresh-value" },
+      },
+    },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:databar",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  const count = (re) => (config.match(re) ?? []).length;
+  assert.equal(count(/^\[mcp_servers\.databar\.env\]/gm), 0);
+  assert.equal(count(/^\[mcp_servers\.databar\.http_headers\]/gm), 0);
+  assert.equal(count(/^\[mcp_servers\.databar\]/gm), 1);
+  assert.match(config, /env = \{ DATABAR_API_KEY = "fresh-value" \}/);
+});
+
+test("project MCP delete removes a server's orphan .env/.http_headers sub-tables, not just its base table", () => {
+  // Regression: deleteCodexMcpServers's lazy body match halts right before ANY
+  // `[mcp_servers.` line (including the deleted server's own sub-tables), so a
+  // "deleted" server used to leave its secrets behind in an orphan sub-table.
+  const fixture = createFixture();
+  mkdirSync(join(fixture.project, ".claude"), { recursive: true });
+  mkdirSync(join(fixture.project, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.project, ".codex/config.toml"),
+    [
+      "[mcp_servers.databar]",
+      'command = "node"',
+      "",
+      "[mcp_servers.databar.env]",
+      'DATABAR_API_KEY = "secret-value"',
+      "",
+      "[mcp_servers.other]",
+      'command = "npx"',
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.project, ".mcp.json"), {
+    mcpServers: {
+      other: { command: "npx" },
+    },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "project",
+    "--include",
+    "mcp:databar",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.project, ".codex/config.toml"), "utf8");
+
+  assert.doesNotMatch(config, /databar/);
+  assert.match(config, /\[mcp_servers\.other\]/);
+});
+
 test("global MCP status reports parity when ~/.claude.json and codex config.toml hold the same server", () => {
   // ~/.claude.json is the only canonical Claude global MCP source; settings.json
   // and the legacy ~/.claude/mcp.json must not be probed.

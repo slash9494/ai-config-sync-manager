@@ -5314,15 +5314,29 @@ function stripTopLevelMcpServerTables(text, serverNames, blockName = "mcp-server
 
 function stripMcpTablesFromSegment(segment, serverNames) {
   return serverNames.reduce((acc, name) => {
-    // Match `[mcp_servers.X]` headers (NOT `[mcp_servers.X.tools.Y]` sub-tables —
-    // those carry standalone tool-permission config the user may want to keep). The
+    // Match `[mcp_servers.X]` AND config sub-tables like `[mcp_servers.X.env]` /
+    // `[mcp_servers.X.http_headers]` — the managed block re-emits those fields inline,
+    // so leaving the standalone sub-table behind produces a duplicate TOML key that
+    // Codex's strict parser rejects. `[mcp_servers.X.tools.Y]` sub-tables are skipped
+    // (negative lookahead): they carry standalone tool-permission config to keep. The
     // body match consumes lines until the next TOML header (`[`) or a managed-block
     // marker (`# BEGIN/END ai-config-sync`), so it never accidentally swallows them.
     const pattern = new RegExp(
-      `(^|\\n)\\[mcp_servers\\.${escapeRegExp(name)}\\][^\\n]*(?:\\n(?!\\[|# (?:BEGIN|END) ai-config-sync )[^\\n]*)*\\n?`,
+      `(^|\\n)\\[mcp_servers\\.${escapeRegExp(name)}(?:\\.(?!tools[.\\]])[^\\]]+)?\\][^\\n]*(?:\\n(?!\\[|# (?:BEGIN|END) ai-config-sync )[^\\n]*)*\\n?`,
       "g"
     );
-    return acc.replace(pattern, (match, prefix) => (prefix === "\n" ? "\n" : ""));
+    // Loop to a fixed point rather than a single replace(): when a base table is
+    // immediately followed (only a blank line apart) by its own `.env`/`.http_headers`
+    // sub-table, the base match's trailing `\n?` consumes the separator newline the
+    // sub-table's own `(^|\n)` anchor needs, so a single pass leaves it unstripped.
+    // Re-running finds it anchored on the fresh `^` at the top of the shortened string.
+    let next = acc;
+    let previous;
+    do {
+      previous = next;
+      next = previous.replace(pattern, (match, prefix) => (prefix === "\n" ? "\n" : ""));
+    } while (next !== previous);
+    return next;
   }, segment);
 }
 
@@ -5492,11 +5506,22 @@ function deleteCodexMcpServers(targetPath, serverNames) {
       `^\\[mcp_servers\\.${escapeRegExp(name)}\\]\\n[\\s\\S]*?(?=^\\[mcp_servers\\.|(?![\\s\\S]))`,
       "gm"
     );
+    // `serverPattern`'s body match halts right before the next `[mcp_servers.` line,
+    // so a deleted server's own `.env`/`.http_headers` sub-tables (which start with
+    // that same prefix) are never swallowed by it. Strip them explicitly here — a
+    // fully-deleted server shouldn't leave its secrets behind in an orphan sub-table.
+    const configSubTablePattern = new RegExp(
+      `^\\[mcp_servers\\.${escapeRegExp(name)}\\.(?!tools\\.)[^\\]]+\\]\\n[\\s\\S]*?(?=^\\[mcp_servers\\.|(?![\\s\\S]))`,
+      "gm"
+    );
     const toolsPattern = new RegExp(
       `^\\[mcp_servers\\.${escapeRegExp(name)}\\.tools\\.[^\\]]+\\]\\n[\\s\\S]*?(?=^\\[|(?![\\s\\S]))`,
       "gm"
     );
-    nextText = nextText.replace(serverPattern, "").replace(toolsPattern, "");
+    nextText = nextText
+      .replace(serverPattern, "")
+      .replace(configSubTablePattern, "")
+      .replace(toolsPattern, "");
   }
 
   writeFileSync(targetPath, nextText.replace(/\n{3,}/g, "\n\n").replace(/\s*$/, "\n"));
@@ -5817,12 +5842,14 @@ function readCodexMcpServerDetails(path) {
     const url = body.match(/^url\s*=\s*"([^"]*)"/m);
     const args = body.match(/^args\s*=\s*(\[.*\])/m);
     const env = body.match(/^env\s*=\s*(\{.*\})/m);
+    const httpHeaders = body.match(/^http_headers\s*=\s*(\{.*\})/m);
     const bearerTokenEnvVar = body.match(/^bearer_token_env_var\s*=\s*"([^"]*)"/m);
 
     if (command) server.command = command[1];
     if (url) server.url = url[1];
     if (args) server.args = parseJsonLike(args[1], []);
     if (env) server.env = parseInlineTomlObject(env[1]);
+    if (httpHeaders) server.headers = parseInlineTomlObject(httpHeaders[1]);
     if (bearerTokenEnvVar) server.bearerTokenEnvVar = bearerTokenEnvVar[1];
     servers[match[1]] = server;
   }
@@ -5862,12 +5889,14 @@ function readCodexMcpServers(path) {
     const url = body.match(/^url\s*=\s*"([^"]*)"/m);
     const args = body.match(/^args\s*=\s*(\[.*\])/m);
     const env = body.match(/^env\s*=\s*(\{.*\})/m);
+    const httpHeaders = body.match(/^http_headers\s*=\s*(\{.*\})/m);
     const bearerTokenEnvVar = body.match(/^bearer_token_env_var\s*=\s*"([^"]*)"/m);
 
     if (command) server.command = command[1];
     if (url) server.url = url[1];
     if (args) server.args = parseJsonLike(args[1], []);
     if (env) server.env = parseInlineTomlObject(env[1]);
+    if (httpHeaders) server.headers = parseInlineTomlObject(httpHeaders[1]);
     if (bearerTokenEnvVar) server.bearerTokenEnvVar = bearerTokenEnvVar[1];
     servers[match[1]] = server;
   }
@@ -6019,6 +6048,15 @@ function renderCodexMcpServers(servers) {
     if (server.env && Object.keys(server.env).length > 0) {
       lines.push(
         `env = { ${Object.entries(server.env)
+          .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
+          .join(", ")} }`
+      );
+    }
+    // Non-Authorization headers (e.g. an API key) map to Codex `http_headers`;
+    // omitting them silently drops the credential a streamable-http server needs.
+    if (server.headers && Object.keys(server.headers).length > 0) {
+      lines.push(
+        `http_headers = { ${Object.entries(server.headers)
           .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
           .join(", ")} }`
       );
