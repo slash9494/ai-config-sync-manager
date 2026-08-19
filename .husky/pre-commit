@@ -1,7 +1,14 @@
 # Step 0: Guard against package.json version bumps outside main
 # Version bumps must be committed as a dedicated release commit on main.
 BRANCH=$(git branch --show-current)
-if [ "$BRANCH" != "main" ] && git diff --cached --name-only | grep -q "^package.json$"; then
+# `git branch --show-current` prints NOTHING when HEAD is detached, so the empty string was
+# being read as "a branch that is not main". Any flow that stages a version change with a
+# detached HEAD — validating a merge in a throwaway worktree, an interactive rebase, a
+# bisect — was refused with `on branch ''`, naming a branch nobody chose.
+#
+# The intent is unchanged: a version bump must not ride along on a NAMED feature branch. A
+# detached HEAD is a validation or rebase context, not a path a person releases from.
+if [ -n "$BRANCH" ] && [ "$BRANCH" != "main" ] && git diff --cached --name-only | grep -q "^package.json$"; then
   if git diff --cached package.json | grep -qE '^[+-][[:space:]]*"version":'; then
     echo ""
     echo "❌ package.json \"version\" change detected on branch '$BRANCH'."
