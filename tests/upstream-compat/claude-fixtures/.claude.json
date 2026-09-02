@@ -4,6 +4,10 @@
       "type": "stdio",
       "command": "node",
       "args": ["-e", "process.exit(0)"]
+    },
+    "remote": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp"
     }
   }
 }

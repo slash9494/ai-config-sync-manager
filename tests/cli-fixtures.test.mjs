@@ -315,6 +315,583 @@ test("global MCP sync maps Codex http_headers_helper to Claude headersHelper", (
   assert.equal(report.entries.length, 0);
 });
 
+test("global MCP delete removes the server's sub-tables and leaves later sections intact", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "# BEGIN ai-config-sync mcp-servers",
+      "[mcp_servers.keepme]",
+      'command = "keep"',
+      "[mcp_servers.node_repl]",
+      'command = "node-repl"',
+      "[mcp_servers.node_repl.env]",
+      'NODE_REPL_NODE_PATH = "/usr/bin/node"',
+      "# END ai-config-sync mcp-servers",
+      "",
+      "[features]",
+      "hooks = true",
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { keepme: { type: "stdio", command: "keep" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:node_repl",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.doesNotMatch(config, /\[mcp_servers\.node_repl\]/);
+  assert.doesNotMatch(config, /\[mcp_servers\.node_repl\.env\]/);
+  assert.doesNotMatch(config, /NODE_REPL_NODE_PATH/);
+  assert.match(config, /\[mcp_servers\.keepme\]/);
+  assert.match(config, /\[features\]/);
+  assert.match(config, /hooks = true/);
+});
+
+test("global MCP sync reads a single-quoted Codex http_headers_helper", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.sentry]",
+      'url = "https://mcp.sentry.io"',
+      "http_headers_helper = '/usr/local/bin/mint --header \"X-Api: tok\"'",
+      "",
+    ].join("\n")
+  );
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:sentry",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+
+  assert.deepEqual(claude.mcpServers.sentry, {
+    type: "http",
+    url: "https://mcp.sentry.io",
+    headersHelper: '/usr/local/bin/mint --header "X-Api: tok"',
+  });
+});
+
+test("global MCP sync decodes a multi-line and a \\U-escaped http_headers_helper on a server it was not asked to touch", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  const multiline = '"""\nmint --emoji\n"""';
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.bystander]",
+      'url = "https://mcp.bystander.io"',
+      `http_headers_helper = ${multiline}`,
+      "[mcp_servers.escaped]",
+      'url = "https://mcp.escaped.io"',
+      'http_headers_helper = "mint \\U0001F600"',
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /\[mcp_servers\.fresh\]/);
+  assert.match(config, /^http_headers_helper = "mint --emoji"$/m);
+  assert.match(config, /^http_headers_helper = "mint 😀"$/m);
+});
+
+test("global MCP sync preserves a multi-line literal http_headers_helper on a server it was not asked to touch", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  const multilineLiteral = "'''\nmint --header 'X-Api: tok'\n'''";
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.bystander]",
+      'url = "https://mcp.bystander.io"',
+      `http_headers_helper = ${multilineLiteral}`,
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /\[mcp_servers\.fresh\]/);
+  assert.match(config, /^http_headers_helper = "mint --header 'X-Api: tok'"$/m);
+});
+
+test("global MCP sync tells a multi-line literal http_headers_helper apart from a single-line one in the same config", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  const multilineLiteral = "'''\nmint --emoji\n'''";
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.bystander]",
+      'url = "https://mcp.bystander.io"',
+      `http_headers_helper = ${multilineLiteral}`,
+      "[mcp_servers.literal]",
+      'url = "https://mcp.literal.io"',
+      "http_headers_helper = '/usr/local/bin/mint --header \"X-Api: tok\"'",
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /^http_headers_helper = "mint --emoji"$/m);
+  assert.match(config, /http_headers_helper = "\/usr\/local\/bin\/mint --header \\"X-Api: tok\\""/);
+});
+
+test("global MCP sync preserves literal and multi-line command, url, and bearer_token_env_var on servers it was not asked to touch", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  const literalServer = [
+    "[mcp_servers.literal]",
+    "command = 'C:\\bin\\thing.exe'",
+    "url = 'https://mcp.literal.io/?q=a\\b'",
+    "bearer_token_env_var = 'LITERAL_TOKEN'",
+  ].join("\n");
+  const literalRewritten = [
+    "[mcp_servers.literal]",
+    'command = "C:\\\\bin\\\\thing.exe"',
+    'url = "https://mcp.literal.io/?q=a\\\\b"',
+    'bearer_token_env_var = "LITERAL_TOKEN"',
+  ].join("\n");
+  const multilineBasicServer = [
+    "[mcp_servers.mlbasic]",
+    'command = """',
+    "node --harmony",
+    '"""',
+    'url = """',
+    "https://mcp.mlbasic.io",
+    '"""',
+    'bearer_token_env_var = """',
+    "MLBASIC_TOKEN",
+    '"""',
+  ].join("\n");
+  const multilineLiteralServer = [
+    "[mcp_servers.mlliteral]",
+    "command = '''",
+    "C:\\bin\\thing.exe",
+    "'''",
+    "url = '''",
+    "https://mcp.mlliteral.io",
+    "'''",
+    "bearer_token_env_var = '''",
+    "MLLITERAL_TOKEN",
+    "'''",
+  ].join("\n");
+  const multilineBasicRewritten = [
+    "[mcp_servers.mlbasic]",
+    'command = "node --harmony"',
+    'url = "https://mcp.mlbasic.io"',
+    'bearer_token_env_var = "MLBASIC_TOKEN"',
+  ].join("\n");
+  const multilineLiteralRewritten = [
+    "[mcp_servers.mlliteral]",
+    'command = "C:\\\\bin\\\\thing.exe"',
+    'url = "https://mcp.mlliteral.io"',
+    'bearer_token_env_var = "MLLITERAL_TOKEN"',
+  ].join("\n");
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [literalServer, multilineBasicServer, multilineLiteralServer, ""].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /\[mcp_servers\.fresh\]/);
+  assert.ok(config.includes(literalRewritten), `literal strings lost their values:\n${config}`);
+  assert.ok(
+    config.includes(multilineBasicRewritten),
+    `multi-line basic strings lost their values:\n${config}`
+  );
+  assert.ok(
+    config.includes(multilineLiteralRewritten),
+    `multi-line literal strings lost their values:\n${config}`
+  );
+});
+
+test("global MCP sync reads a literal Codex command into a Claude stdio server with its backslashes intact", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    ["[mcp_servers.winpath]", "command = 'C:\\bin\\thing.exe'", 'args = ["--serve"]', ""].join("\n")
+  );
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:winpath",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+
+  assert.deepEqual(claude.mcpServers.winpath, {
+    type: "stdio",
+    command: "C:\\bin\\thing.exe",
+    args: ["--serve"],
+  });
+
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "global", "--include", "mcp:winpath", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
+test("global MCP sync carries a multi-line basic Codex command through to Claude as a stdio server", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  const multiline = '"""\nnode --harmony\n"""';
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    ["[mcp_servers.mlbasic]", `command = ${multiline}`, 'args = ["server.js"]', ""].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:mlbasic",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+
+  assert.match(config, /^command = "node --harmony"$/m);
+  assert.deepEqual(claude.mcpServers.mlbasic, {
+    type: "stdio",
+    command: "node --harmony",
+    args: ["server.js"],
+  });
+});
+
+test("global MCP sync ignores a command line buried inside a multi-line http_headers_helper", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.hooky]",
+      'command = "npx"',
+      'args = ["-y","real-server"]',
+      "http_headers_helper = '''",
+      "#!/bin/sh",
+      "command = 'evil'",
+      "'''",
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /^command = "npx"$/m);
+  assert.doesNotMatch(config, /command = "evil"/);
+  assert.match(config, /^http_headers_helper = "#!\/bin\/sh\\ncommand = 'evil'"$/m);
+});
+
+test("global MCP sync decodes escaped-quote, four-quote, and \\U string forms on servers it was not asked to touch", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.escapedquote]",
+      'http_headers_helper = """a\\"b"""',
+      'url = "https://mcp.escapedquote.io"',
+      "[mcp_servers.quadliteral]",
+      "http_headers_helper = ''''that,' she said''''",
+      "[mcp_servers.quadbasic]",
+      'http_headers_helper = """"quoted""""',
+      "[mcp_servers.unicode]",
+      'command = "mint \\U0001F600"',
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /^http_headers_helper = "a\\"b"$/m);
+  assert.match(config, /^url = "https:\/\/mcp\.escapedquote\.io"$/m);
+  assert.match(config, /^http_headers_helper = "'that,' she said'"$/m);
+  assert.match(config, /^http_headers_helper = "\\"quoted\\""$/m);
+  assert.match(config, /^command = "mint 😀"$/m);
+});
+
+test("global MCP sync reads a multi-line literal Codex command without a trailing newline", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    ["[mcp_servers.mlliteral]", "command = '''", "/usr/local/bin/my-server", "'''", ""].join("\n")
+  );
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:mlliteral",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+
+  assert.deepEqual(claude.mcpServers.mlliteral, {
+    type: "stdio",
+    command: "/usr/local/bin/my-server",
+  });
+});
+
+test("global MCP sync keeps indented Codex keys on a server it was not asked to touch", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    ["[mcp_servers.indented]", '  command = "node"', '  args = ["c"]', ""].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.ok(
+    config.includes(["[mcp_servers.indented]", 'command = "node"', 'args = ["c"]'].join("\n")),
+    `indented keys were dropped:\n${config}`
+  );
+});
+
+test("global MCP sync treats both empty Codex command forms the same", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.emptyliteral]",
+      "command = ''",
+      'url = "https://mcp.emptyliteral.io"',
+      "[mcp_servers.emptymultiline]",
+      "command = ''''''",
+      'url = "https://mcp.emptymultiline.io"',
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.doesNotMatch(config, /^command = ""$/m);
+  assert.ok(
+    config.includes(
+      ["[mcp_servers.emptyliteral]", 'url = "https://mcp.emptyliteral.io"'].join("\n")
+    ),
+    `the single-quote empty command did not drop out cleanly:\n${config}`
+  );
+  assert.ok(
+    config.includes(
+      ["[mcp_servers.emptymultiline]", 'url = "https://mcp.emptymultiline.io"'].join("\n")
+    ),
+    `the six-quote empty command did not drop out cleanly:\n${config}`
+  );
+});
+
+test("global MCP sync reads a CRLF Codex config into a Claude stdio server", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    '[mcp_servers.win]\r\ncommand = "node"\r\nargs = ["w.js"]\r\n'
+  );
+  writeJson(join(fixture.home, ".claude.json"), { mcpServers: {} });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:win",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+
+  assert.deepEqual(claude.mcpServers.win, {
+    type: "stdio",
+    command: "node",
+    args: ["w.js"],
+  });
+});
+
 test("global MCP sync maps Claude headersHelper to Codex http_headers_helper", () => {
   const fixture = createFixture();
   mkdirSync(join(fixture.home, ".codex"), { recursive: true });
@@ -352,6 +929,125 @@ test("global MCP sync maps Claude headersHelper to Codex http_headers_helper", (
   assert.equal(report.entries.length, 0);
 });
 
+test("global MCP status reports a headersHelper that only one host has", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: {
+      sentry: {
+        type: "http",
+        url: "https://mcp.sentry.io",
+        headersHelper: "/usr/local/bin/mint-sentry-headers",
+      },
+    },
+  });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.sentry]",
+      'transport = "streamable_http"',
+      'url = "https://mcp.sentry.io"',
+      "",
+    ].join("\n")
+  );
+
+  const before = JSON.parse(
+    runCli(fixture, ["status", "--scope", "global", "--include", "mcp:sentry", "--json"])
+  );
+  assert.equal(
+    before.entries.length,
+    1,
+    "a server present on both hosts must still report the headersHelper difference"
+  );
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:sentry",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /http_headers_helper = "\/usr\/local\/bin\/mint-sentry-headers"/);
+
+  const after = JSON.parse(
+    runCli(fixture, ["status", "--scope", "global", "--include", "mcp:sentry", "--json"])
+  );
+  assert.equal(after.entries.length, 0);
+});
+
+test("global MCP sync round-trips a headersHelper containing quotes and backslashes", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  const helper = 'sh -c "mint --path C:\\bin\\tok"';
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: {
+      sentry: { type: "http", url: "https://mcp.sentry.io", headersHelper: helper },
+    },
+  });
+  writeFileSync(join(fixture.home, ".codex/config.toml"), "");
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:sentry",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  rmSync(join(fixture.home, ".claude.json"));
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:sentry",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+  assert.equal(claude.mcpServers.sentry.headersHelper, helper);
+});
+
+test("global MCP sync drops a whitespace-only headersHelper", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    ["[mcp_servers.ws]", 'command = "ws-server"', 'http_headers_helper = "   "', ""].join("\n")
+  );
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:ws",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+  assert.deepEqual(claude.mcpServers.ws, { type: "stdio", command: "ws-server" });
+});
+
 test("global MCP sync maps Claude Authorization header to Codex bearer_token_env_var", () => {
   const fixture = createFixture();
   mkdirSync(join(fixture.home, ".codex"), { recursive: true });
@@ -382,7 +1078,7 @@ test("global MCP sync maps Claude Authorization header to Codex bearer_token_env
 
   assert.match(output, /merged MCP servers claude -> codex: sentry/);
   assert.match(config, /\[mcp_servers\.sentry\]/);
-  assert.match(config, /transport = "streamable_http"/);
+  assert.doesNotMatch(config, /transport = /);
   assert.match(config, /url = "https:\/\/mcp\.sentry\.io"/);
   assert.match(config, /bearer_token_env_var = "SENTRY_AUTH_TOKEN"/);
 
@@ -6796,7 +7492,7 @@ async function runLauncherAgainstVersionStub({ fixture, pinnedVersion, stubVersi
   return spawnSync("bash", [launcher, "hello"], { encoding: "utf8", env });
 }
 
-test("host-launcher aborts when the PATH binary differs by minor below 1.0", async () => {
+test("host-launcher skips the PATH binary and falls back when it differs by minor below 1.0", async () => {
   const fixture = createFixture();
   const run = await runLauncherAgainstVersionStub({
     fixture,
@@ -6804,9 +7500,21 @@ test("host-launcher aborts when the PATH binary differs by minor below 1.0", asy
     stubVersion: "0.2.0",
   });
 
-  assert.notEqual(run.status, 0, `expected abort, got stdout: ${run.stdout}`);
   assert.match(run.stderr, /0\.2\.0 incompatible with launcher pin 0\.1\.0/);
   assert.match(run.stderr, /minor differs below 1\.0/);
+  assert.match(run.stderr, /falling back to the pinned version/);
+  assert.doesNotMatch(run.stdout, /STUB_RAN/);
+});
+
+test("host-launcher skips the PATH binary when it is a prerelease of the pin", async () => {
+  const fixture = createFixture();
+  const run = await runLauncherAgainstVersionStub({
+    fixture,
+    pinnedVersion: "0.2.0",
+    stubVersion: "0.2.0-beta.1",
+  });
+
+  assert.match(run.stderr, /0\.2\.0-beta\.1 is a prerelease of launcher pin 0\.2\.0/);
   assert.doesNotMatch(run.stdout, /STUB_RAN/);
 });
 

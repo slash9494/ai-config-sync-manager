@@ -421,7 +421,7 @@ The plugin launcher resolves the CLI in this order:
 2. PATH `ai-config-sync` (`npm install -g` or `npm link`)
 3. `npm exec --yes --package=ai-config-sync-manager@<pin>` fallback
 
-After `npm install -g`, every host calls the same npm package, so two hosts cannot drift to different versions.
+After `npm install -g`, every host calls the same npm package, so the runtime body cannot drift between hosts. The launcher pin is separate: it is baked into each host plugin at build time and refreshed per host, so two plugins can hold different pins against that one global binary. `npm install -g <pkg>@<pin>` therefore fixes one host's launcher at the cost of the other's; refresh the stale plugin in its host instead.
 
 ## Local dev from this repo
 

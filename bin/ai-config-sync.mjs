@@ -39,6 +39,15 @@ const LEGACY_SKILL_MANIFEST = "skill.md";
 const DEFAULT_SKILL_MANIFEST = "SKILL.md";
 const SKILL_MANIFEST_BASENAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 const CODEX_MARKETPLACE_NAME = "local-plugins";
+// Reader and renderer share this list so a field can never be parsed in one and dropped in the other.
+const CODEX_MCP_STRING_FIELDS = [
+  ["command", "command"],
+  ["url", "url"],
+  ["bearerTokenEnvVar", "bearer_token_env_var"],
+  ["headersHelper", "http_headers_helper"],
+];
+const TOML_BASIC_ESCAPES = { b: "\b", f: "\f", n: "\n", r: "\r", t: "\t", '"': '"', "\\": "\\" };
+const TOML_GROUP_CLOSERS = { "[": "]", "{": "}" };
 const runtimePackage = readRuntimePackage();
 
 /**
@@ -5309,7 +5318,12 @@ function stripTopLevelMcpServerTables(text, serverNames, blockName = "mcp-server
   // Collapse triple+ blank lines that may appear after removing tables, but preserve
   // a final newline if the original had one.
   const trailingNewline = /\n$/.test(text) ? "\n" : "";
-  return stripped.replace(/\n{3,}/g, "\n\n").replace(/\s*$/, "") + trailingNewline;
+  return collapseBlankLines(stripped).replace(/\s*$/, "") + trailingNewline;
+}
+
+// The capture repeats with the run, so a CRLF file collapses to CRLF and an LF file to LF.
+function collapseBlankLines(text) {
+  return text.replace(/(\r?\n){3,}/g, "$1$1");
 }
 
 function stripMcpTablesFromSegment(segment, serverNames) {
@@ -5489,17 +5503,18 @@ function deleteCodexMcpServers(targetPath, serverNames) {
 
   for (const name of serverNames) {
     const serverPattern = new RegExp(
-      `^\\[mcp_servers\\.${escapeRegExp(name)}\\]\\n[\\s\\S]*?(?=^\\[mcp_servers\\.|(?![\\s\\S]))`,
+      `^\\[mcp_servers\\.${escapeRegExp(name)}\\]\\r?\\n[\\s\\S]*?(?=^\\[|(?![\\s\\S]))`,
       "gm"
     );
-    const toolsPattern = new RegExp(
-      `^\\[mcp_servers\\.${escapeRegExp(name)}\\.tools\\.[^\\]]+\\]\\n[\\s\\S]*?(?=^\\[|(?![\\s\\S]))`,
+    const subTablePattern = new RegExp(
+      `^\\[mcp_servers\\.${escapeRegExp(name)}\\.[^\\]]+\\]\\r?\\n[\\s\\S]*?(?=^\\[|(?![\\s\\S]))`,
       "gm"
     );
-    nextText = nextText.replace(serverPattern, "").replace(toolsPattern, "");
+    nextText = nextText.replace(serverPattern, "").replace(subTablePattern, "");
   }
 
-  writeFileSync(targetPath, nextText.replace(/\n{3,}/g, "\n\n").replace(/\s*$/, "\n"));
+  const lineEnding = text.includes("\r\n") ? "\r\n" : "\n";
+  writeFileSync(targetPath, collapseBlankLines(nextText).replace(/\s*$/, lineEnding));
 }
 
 function deleteClaudePermissions(targetPath, itemNames) {
@@ -5810,30 +5825,7 @@ function readCodexMcpServerDetails(path) {
     const data = readJsonFile(path, {});
     return normalizeMcpServerDetails(data.mcpServers ?? data.servers ?? {});
   }
-  const text = readFileSync(path, "utf8");
-  const servers = {};
-  const tablePattern = /^\[mcp_servers\.([^\].]+)\]\n([\s\S]*?)(?=^\[mcp_servers\.|(?![\s\S]))/gm;
-
-  for (const match of text.matchAll(tablePattern)) {
-    const server = {};
-    const body = match[2];
-    const command = body.match(/^command\s*=\s*"([^"]*)"/m);
-    const url = body.match(/^url\s*=\s*"([^"]*)"/m);
-    const args = body.match(/^args\s*=\s*(\[.*\])/m);
-    const env = body.match(/^env\s*=\s*(\{.*\})/m);
-    const bearerTokenEnvVar = body.match(/^bearer_token_env_var\s*=\s*"([^"]*)"/m);
-    const headersHelper = body.match(/^http_headers_helper\s*=\s*"([^"]*)"/m);
-
-    if (command) server.command = command[1];
-    if (url) server.url = url[1];
-    if (args) server.args = parseJsonLike(args[1], []);
-    if (env) server.env = parseInlineTomlObject(env[1]);
-    if (bearerTokenEnvVar) server.bearerTokenEnvVar = bearerTokenEnvVar[1];
-    if (headersHelper) server.headersHelper = headersHelper[1];
-    servers[match[1]] = server;
-  }
-
-  return normalizeMcpServerDetails(servers);
+  return normalizeMcpServerDetails(readCodexMcpServerTables(readFileSync(path, "utf8")));
 }
 
 function readClaudeMcpServers(path) {
@@ -5857,30 +5849,169 @@ function readCodexMcpServers(path) {
     const data = readJsonFile(path, {});
     return normalizeMcpServers(data.mcpServers ?? data.servers ?? {});
   }
-  const text = readFileSync(path, "utf8");
-  const servers = {};
-  const tablePattern = /^\[mcp_servers\.([^\].]+)\]\n([\s\S]*?)(?=^\[mcp_servers\.|(?![\s\S]))/gm;
+  return normalizeMcpServers(readCodexMcpServerTables(readFileSync(path, "utf8")));
+}
 
-  for (const match of text.matchAll(tablePattern)) {
-    const server = {};
-    const body = match[2];
-    const command = body.match(/^command\s*=\s*"([^"]*)"/m);
-    const url = body.match(/^url\s*=\s*"([^"]*)"/m);
-    const args = body.match(/^args\s*=\s*(\[.*\])/m);
-    const env = body.match(/^env\s*=\s*(\{.*\})/m);
-    const bearerTokenEnvVar = body.match(/^bearer_token_env_var\s*=\s*"([^"]*)"/m);
-    const headersHelper = body.match(/^http_headers_helper\s*=\s*"([^"]*)"/m);
+// One scan drives the table split and every key read, so a header or key line inside a multi-line value is not one.
+function readCodexMcpServerTables(text) {
+  const tables = {};
+  const tokenPattern =
+    /^[ \t]*(?:\[{1,2}([^\][\r\n]+)\]{1,2}[ \t]*(?=\r?\n|$)|([\w-]+)[ \t]*=[ \t]*)/gm;
+  let entries = null;
+  let token;
 
-    if (command) server.command = command[1];
-    if (url) server.url = url[1];
-    if (args) server.args = parseJsonLike(args[1], []);
-    if (env) server.env = parseInlineTomlObject(env[1]);
-    if (bearerTokenEnvVar) server.bearerTokenEnvVar = bearerTokenEnvVar[1];
-    if (headersHelper) server.headersHelper = headersHelper[1];
-    servers[match[1]] = server;
+  while ((token = tokenPattern.exec(text))) {
+    if (token[1] !== undefined) {
+      const name = token[1].match(/^mcp_servers\.([^.]+)$/)?.[1];
+      entries = name ? (tables[name] = {}) : null;
+      continue;
+    }
+    const scanned = scanCodexTomlValue(text, token.index + token[0].length);
+    tokenPattern.lastIndex = scanned.end;
+    if (entries && !(token[2] in entries)) entries[token[2]] = scanned;
   }
 
-  return normalizeMcpServers(servers);
+  return Object.fromEntries(
+    Object.entries(tables).map(([name, entries]) => [name, codexMcpServerFromEntries(entries)])
+  );
+}
+
+function codexMcpServerFromEntries(entries) {
+  const server = {};
+  if (entries.args) server.args = parseJsonLike(entries.args.raw, []);
+  if (entries.env) server.env = parseInlineTomlObject(entries.env.raw);
+
+  for (const [field, tomlKey] of CODEX_MCP_STRING_FIELDS) {
+    const entry = entries[tomlKey];
+    if (!entry) continue;
+    // A command, url, or env-var name that is blank is never valid in any of the four string forms.
+    if (typeof entry.value === "string" && entry.value.trim()) server[field] = entry.value;
+    // A token we cannot decode is not a field the author left out, so keep their bytes instead of dropping the line.
+    else if (entry.value === null) {
+      server.rawTomlTokens = { ...server.rawTomlTokens, [field]: entry.raw };
+    }
+  }
+
+  return server;
+}
+
+function scanCodexTomlValue(text, start) {
+  const string = scanCodexTomlString(text, start);
+  const end = string ? string.end : scanCodexTomlSpanEnd(text, start);
+  return { value: string ? string.value : null, raw: text.slice(start, end), end };
+}
+
+function scanCodexTomlSpanEnd(text, start) {
+  const closer = TOML_GROUP_CLOSERS[text[start]];
+  if (!closer) {
+    const lineEnd = text.slice(start).search(/\r?\n/);
+    return lineEnd === -1 ? text.length : start + lineEnd;
+  }
+
+  let depth = 0;
+  let index = start;
+  while (index < text.length) {
+    const string = scanCodexTomlString(text, index);
+    if (string) {
+      index = string.end;
+      continue;
+    }
+    const char = text[index];
+    index += 1;
+    if (char === text[start]) depth += 1;
+    else if (char === closer && (depth -= 1) === 0) return index;
+  }
+
+  return codexTomlValueBoundary(text, start);
+}
+
+// An unclosed delimiter already makes the file unparseable, so stop at the next table to keep the damage inside it.
+function codexTomlValueBoundary(text, start) {
+  const boundary = text.slice(start).search(/\r?\n(?=\[|# (?:BEGIN|END) ai-config-sync )/);
+  if (boundary !== -1) return start + boundary;
+  return text.replace(/(?:\r?\n)+$/, "").length;
+}
+
+function scanCodexTomlString(text, start) {
+  const quote = text[start];
+  if (quote !== '"' && quote !== "'") return null;
+  if (text.startsWith(quote.repeat(3), start)) return scanCodexTomlMultiline(text, start, quote);
+
+  const linePattern = quote === '"' ? /^"(?:[^"\\\r\n]|\\[^\r\n])*"/ : /^'[^'\r\n]*'/;
+  const line = text.slice(start).match(linePattern);
+  if (!line) return null;
+  const content = line[0].slice(1, -1);
+  return {
+    value: quote === '"' ? decodeTomlBasicContent(content) : content,
+    end: start + line[0].length,
+  };
+}
+
+function scanCodexTomlMultiline(text, start, quote) {
+  const delimiter = quote.repeat(3);
+  const escaped = quote === '"';
+  let index = start + 3;
+
+  while (index < text.length) {
+    if (escaped && text[index] === "\\") {
+      index += 2;
+      continue;
+    }
+    if (!text.startsWith(delimiter, index)) {
+      index += 1;
+      continue;
+    }
+    // TOML lets the value keep up to two of its own quote characters right before the closing delimiter.
+    let trailingQuotes = 0;
+    while (trailingQuotes < 2 && text[index + 3 + trailingQuotes] === quote) trailingQuotes += 1;
+    // A command or url written across lines means the delimiter's own newlines, not part of the value.
+    const content = text
+      .slice(start + 3, index + trailingQuotes)
+      .replace(/^\r?\n/, "")
+      .replace(/\r?\n$/, "");
+    return {
+      value: escaped ? decodeTomlBasicContent(content) : content,
+      end: index + 3 + trailingQuotes,
+    };
+  }
+
+  return { value: null, end: codexTomlValueBoundary(text, start) };
+}
+
+// TOML basic strings carry \U and a line-ending backslash, neither of which JSON.parse knows how to read.
+function decodeTomlBasicContent(content) {
+  let decoded = "";
+  let index = 0;
+
+  while (index < content.length) {
+    if (content[index] !== "\\") {
+      decoded += content[index];
+      index += 1;
+      continue;
+    }
+    const marker = content[index + 1];
+    if (marker === "u" || marker === "U") {
+      const width = marker === "u" ? 4 : 8;
+      const digits = content.slice(index + 2, index + 2 + width);
+      if (digits.length < width || !/^[0-9a-fA-F]+$/.test(digits)) return null;
+      const codePoint = Number.parseInt(digits, 16);
+      // A surrogate half is not a Unicode scalar value, so re-emitting it would produce a config strict TOML rejects.
+      if (codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) return null;
+      decoded += String.fromCodePoint(codePoint);
+      index += 2 + width;
+      continue;
+    }
+    if (marker in TOML_BASIC_ESCAPES) {
+      decoded += TOML_BASIC_ESCAPES[marker];
+      index += 2;
+      continue;
+    }
+    const lineEnding = content.slice(index + 1).match(/^[ \t]*\r?\n\s*/);
+    if (!lineEnding) return null;
+    index += 1 + lineEnding[0].length;
+  }
+
+  return decoded;
 }
 
 function normalizeMcpServers(servers) {
@@ -5897,6 +6028,7 @@ function normalizeMcpServers(servers) {
           ? { headers: value.headers }
           : {}),
         ...(value.headersHelper ? { headersHelper: value.headersHelper } : {}),
+        ...(value.rawTomlTokens ? { rawTomlTokens: value.rawTomlTokens } : {}),
       },
     ])
   );
@@ -5924,8 +6056,11 @@ function normalizeMcpServerDetails(servers) {
               : {}),
             ...(bearerTokenEnvVar ? { bearerTokenEnvVar } : {}),
             ...(Object.keys(residualHeaders).length > 0 ? { headers: residualHeaders } : {}),
-            ...(typeof value.headersHelper === "string" && value.headersHelper
+            ...(typeof value.headersHelper === "string" && value.headersHelper.trim()
               ? { headersHelper: value.headersHelper }
+              : {}),
+            ...(value.rawTomlTokens && typeof value.rawTomlTokens === "object"
+              ? { rawTomlTokens: value.rawTomlTokens }
               : {}),
           },
         ];
@@ -5964,8 +6099,19 @@ function mcpHeadersWithoutBearerTokenEnv(headers, bearerTokenEnvVar) {
 
 function mcpServersForClaude(servers) {
   return Object.fromEntries(
-    Object.entries(servers).map(([name, server]) => [name, mcpServerForClaude(server)])
+    Object.entries(servers)
+      .filter(([name, server]) => mcpServerReachesClaude(name, server))
+      .map(([name, server]) => [name, mcpServerForClaude(server)])
   );
+}
+
+function mcpServerReachesClaude(name, server) {
+  if (server.command || server.url || !server.rawTomlTokens) return true;
+  // Claude derives type from command or url, so a server whose only token is undecodable would land there unusable.
+  console.error(
+    `ai-config-sync: skipped mcp server ${name}; its Codex command or url did not decode as TOML`
+  );
+  return false;
 }
 
 function mcpServerForClaude(server) {
@@ -6016,6 +6162,14 @@ function stripSecretsEnabled() {
   return typeof value === "string" && /^(1|true|yes)$/i.test(value.trim());
 }
 
+// Writing the author's own token back leaves a server the user never asked to touch byte-identical.
+function renderCodexMcpStringLine(server, field, tomlKey) {
+  const raw = server.rawTomlTokens?.[field];
+  if (raw) return `${tomlKey} = ${raw}`;
+  if (!server[field]) return "";
+  return `${tomlKey} = ${JSON.stringify(server[field])}`;
+}
+
 function renderCodexMcpServers(servers) {
   const lines = [];
 
@@ -6023,13 +6177,10 @@ function renderCodexMcpServers(servers) {
     left.localeCompare(right)
   )) {
     lines.push(`[mcp_servers.${name}]`);
-    if (server.command) lines.push(`command = ${JSON.stringify(server.command)}`);
-    if (server.url) lines.push('transport = "streamable_http"');
-    if (server.url) lines.push(`url = ${JSON.stringify(server.url)}`);
-    if (server.bearerTokenEnvVar)
-      lines.push(`bearer_token_env_var = ${JSON.stringify(server.bearerTokenEnvVar)}`);
-    if (server.headersHelper)
-      lines.push(`http_headers_helper = ${JSON.stringify(server.headersHelper)}`);
+    for (const [field, tomlKey] of CODEX_MCP_STRING_FIELDS) {
+      const line = renderCodexMcpStringLine(server, field, tomlKey);
+      if (line) lines.push(line);
+    }
     if (server.args?.length) lines.push(`args = ${JSON.stringify(server.args)}`);
     if (server.env && Object.keys(server.env).length > 0) {
       lines.push(
@@ -7328,6 +7479,7 @@ function mcpServerSignature(server) {
     env,
     bearerTokenEnvVar: server.bearerTokenEnvVar ?? null,
     headers,
+    headersHelper: server.headersHelper ?? null,
   });
 }
 

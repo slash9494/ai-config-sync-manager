@@ -15,9 +15,11 @@ Files captured verbatim from upstream:
   context7, manual_exa, memory, playwright, sequential-thinking). Two ids are
   prefixed `manual_*` per the parent README guidance to avoid colliding with
   the harness's `CODEX_CONFLICT_HOME` global config; remaining ids match
-  upstream verbatim. The streamable_http exa entry also gets an explicit
-  `transport` field that ECC upstream omits — the current Codex CLI requires
-  it when `url` is present.
+  upstream verbatim. The streamable_http exa entry also carries an explicit
+  `transport` field that ECC upstream omits. It is kept only to prove the
+  reader tolerates it: `transport` is not a Codex config key, and measuring
+  codex-cli 0.144.1 shows `--strict-config` rejects it while a `url`-only
+  table loads fine, so the writer no longer emits it.
 - `.codex/agents/explorer.toml` — multi-agent role config layer.
 - `.agents/skills/verification-loop/SKILL.md` — paraphrase-trigger keywords
   (`Claude Code sessions`, `PostToolUse hooks`, `/verify` slash command). When
