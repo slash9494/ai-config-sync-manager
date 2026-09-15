@@ -1199,8 +1199,22 @@ function addSelectors(selectors, token, value) {
 
   for (const raw of value.split(",")) {
     const selector = parseSelector(raw);
-    if (selector) target.push(selector);
+    if (selector) target.push(assertSelectableArea(selector));
   }
+}
+
+// An area nothing reads filters to zero entries, which prints exactly like "in sync".
+function assertSelectableArea(selector) {
+  const selectable = ["instructions", "skills", "agents", "mcp", "permissions", "hooks", "plugins"];
+  if (selector.area === "commands") {
+    throw new Error(
+      'Area "commands" is not implemented: Claude commands (~/.claude/commands) and Codex prompts (~/.codex/prompts) are not compared, so no result for it could mean in sync.'
+    );
+  }
+  if (!selectable.includes(selector.area)) {
+    throw new Error(`Unknown area: ${selector.area}. Use one of: ${selectable.join(", ")}.`);
+  }
+  return selector;
 }
 
 function parseSelector(raw) {
