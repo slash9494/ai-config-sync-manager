@@ -225,7 +225,7 @@ ai-config-sync paraphrase --map "Read=read the file,Write=write to the file" --a
 
 ## Selector syntax
 
-`--include` narrows the plan first, then `--exclude` removes matches. Both accept `area` or `area:item` syntax; itemized areas (`skills`, `permissions`, `hooks`, `agents`, `mcp`, `commands`) accept glob items.
+`--include` narrows the plan first, then `--exclude` removes matches. Both accept `area` or `area:item` syntax; itemized areas (`skills`, `permissions`, `hooks`, `agents`, `mcp`) accept glob items. An unknown area, or `commands`, is refused rather than planned as empty.
 
 ```bash
 ai-config-sync sync --include skills:code-writer,instructions --exclude mcp --dry-run
@@ -242,7 +242,7 @@ ai-config-sync sync --include "permissions:Write*" --exclude "permissions:Bash(r
 | `mcp` | yes | per server |
 | `permissions` | yes | item-by-item patch |
 | `hooks` | yes | item-by-item patch |
-| `commands` | yes | per command |
+| `commands` | — | **not implemented** — `--include commands` is refused; `~/.claude/commands` and `~/.codex/prompts` are not compared |
 | `plugins` | yes | **status only** (read-only diff; `sync` skips this area) |
 
 ## Ignore rules
