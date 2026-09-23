@@ -4253,69 +4253,91 @@ function applyWriteInstructions(plan, operation) {
   });
 }
 
+// One unreadable item must not unwind the loop and leave every later item silently unapplied.
+function recordItemApplyError(plan, operation, itemName, createdTarget, error) {
+  // A half-written new copy would read as "already exists" on every later run and never be repaired.
+  if (createdTarget) rmSync(createdTarget, { recursive: true, force: true });
+  const reason = error instanceof Error ? error.message : "unknown error";
+  const message = `${operation.scope}/${operation.area}/${itemName}: ${reason}`;
+  plan.results.push({ status: "error", message });
+  recordLedger(plan, {
+    area: operation.area,
+    item: itemName,
+    action: operation.action,
+    status: "error",
+    message,
+  });
+}
+
 function applyCopyMissingSkills(plan, operation) {
   mkdirSync(operation.targetPath, { recursive: true });
   const overwrite = new Set(operation.overwriteSkillNames ?? []);
   const sourceIndex = operation.skillSourceIndex ?? {};
 
   for (const skillName of operation.skillNames ?? []) {
-    const sourceDir = sourceIndex[skillName] ?? operation.sourcePath;
-    const source = join(sourceDir, skillName);
-    const target = join(operation.targetPath, skillName);
+    let itemTarget = null;
+    try {
+      const sourceDir = sourceIndex[skillName] ?? operation.sourcePath;
+      const source = join(sourceDir, skillName);
+      const target = join(operation.targetPath, skillName);
+      if (!existsSync(target)) itemTarget = target;
 
-    if (!existsSync(source)) {
-      const message = `skill source missing: ${source}`;
-      plan.results.push({ status: "skipped", message });
-      recordLedger(plan, {
-        area: operation.area,
-        item: skillName,
-        action: operation.action,
-        status: "skipped",
-        message,
-      });
-      continue;
-    }
-
-    const beforeHash = hashPath(target);
-    let backupPathTaken = null;
-    if (existsSync(target)) {
-      if (!overwrite.has(skillName)) {
-        const message = `skill already exists: ${target}`;
+      if (!existsSync(source)) {
+        const message = `skill source missing: ${source}`;
         plan.results.push({ status: "skipped", message });
         recordLedger(plan, {
           area: operation.area,
           item: skillName,
           action: operation.action,
           status: "skipped",
-          target,
-          beforeHash,
           message,
         });
         continue;
       }
-      backupPathTaken = backupTargetPath(plan, target);
-      backupPath(plan, target);
-      rmSync(target, { recursive: true, force: true });
-    }
 
-    const droppedManifest = copySkillWithMappings(source, target, operation.from, operation.to, {
-      callArchive: plan.callArchive,
-    });
-    const copyVerb = overwrite.has(skillName) ? "replaced" : "copied";
-    const message = droppedManifest
-      ? `${copyVerb} skill ${skillName} (dropped duplicate manifest ${droppedManifest})`
-      : `${copyVerb} skill ${skillName}`;
-    plan.results.push({ status: "applied", message });
-    recordLedger(plan, {
-      area: operation.area,
-      item: skillName,
-      action: operation.action,
-      status: "applied",
-      target,
-      beforeHash,
-      backupPath: backupPathTaken,
-      message,
-    });
+      const beforeHash = hashPath(target);
+      let backupPathTaken = null;
+      if (existsSync(target)) {
+        if (!overwrite.has(skillName)) {
+          const message = `skill already exists: ${target}`;
+          plan.results.push({ status: "skipped", message });
+          recordLedger(plan, {
+            area: operation.area,
+            item: skillName,
+            action: operation.action,
+            status: "skipped",
+            target,
+            beforeHash,
+            message,
+          });
+          continue;
+        }
+        backupPathTaken = backupTargetPath(plan, target);
+        backupPath(plan, target);
+        rmSync(target, { recursive: true, force: true });
+      }
+
+      const droppedManifest = copySkillWithMappings(source, target, operation.from, operation.to, {
+        callArchive: plan.callArchive,
+      });
+      const copyVerb = overwrite.has(skillName) ? "replaced" : "copied";
+      const message = droppedManifest
+        ? `${copyVerb} skill ${skillName} (dropped duplicate manifest ${droppedManifest})`
+        : `${copyVerb} skill ${skillName}`;
+      plan.results.push({ status: "applied", message });
+      recordLedger(plan, {
+        area: operation.area,
+        item: skillName,
+        action: operation.action,
+        status: "applied",
+        target,
+        beforeHash,
+        backupPath: backupPathTaken,
+        message,
+      });
+    } catch (error) {
+      recordItemApplyError(plan, operation, skillName, itemTarget, error);
+    }
   }
 }
 
@@ -4351,21 +4373,83 @@ function applyMergeAgents(plan, operation) {
       : null;
 
   for (const agentName of new Set(operation.agentNames ?? [])) {
-    const collision = source.collisions.get(agentName);
-    if (collision) {
-      const message = `agent name collision: ${collision.join(" and ")} both resolve to ${agentName}`;
-      plan.results.push({ status: "skipped", message });
-      recordLedger(plan, {
-        area: operation.area,
-        item: agentName,
-        action: operation.action,
-        status: "skipped",
-        message,
-      });
-      continue;
-    }
-    if (operation.to === "codex") {
-      const sourceAgent = sourceClaudeIndex?.get(agentName);
+    try {
+      const collision = source.collisions.get(agentName);
+      if (collision) {
+        const message = `agent name collision: ${collision.join(" and ")} both resolve to ${agentName}`;
+        plan.results.push({ status: "skipped", message });
+        recordLedger(plan, {
+          area: operation.area,
+          item: agentName,
+          action: operation.action,
+          status: "skipped",
+          message,
+        });
+        continue;
+      }
+      if (operation.to === "codex") {
+        const sourceAgent = sourceClaudeIndex?.get(agentName);
+        if (!sourceAgent) {
+          const message = `agent source missing: ${agentName}`;
+          plan.results.push({ status: "skipped", message });
+          recordLedger(plan, {
+            area: operation.area,
+            item: agentName,
+            action: operation.action,
+            status: "skipped",
+            message,
+          });
+          continue;
+        }
+        const targetPath = agentTargetPath(agentName, operation.targetPath, "codex", sourceAgent);
+        const existingAgent =
+          existingCodexIndex?.get(agentName) ??
+          existingCodexIndex?.get(sourceAgent.name.split("/").pop());
+        if (existingAgent && !overwrite.has(agentName)) {
+          const message = `agent already exists: ${targetPath}`;
+          plan.results.push({ status: "skipped", message });
+          recordLedger(plan, {
+            area: operation.area,
+            item: agentName,
+            action: operation.action,
+            status: "skipped",
+            target: targetPath,
+            beforeHash: hashPath(targetPath),
+            message,
+          });
+          continue;
+        }
+
+        const claudeParsed = parseClaudeAgentFile(sourceAgent.path);
+        const existingFields = existingAgent ? parseCodexAgentFile(existingAgent.path) : {};
+        const codexFields = mapAgentToCodex(claudeParsed, {
+          preserveCodex: existingFields,
+          fallbackName: agentName.split("/").pop(),
+          callArchive: plan.callArchive,
+        });
+        mkdirSync(dirname(targetPath), { recursive: true });
+        // Matching is by name, so the existing file can sit elsewhere than the path being written.
+        const beforeHash = hashPath(targetPath);
+        const backupPathTaken = backupTargetPath(plan, targetPath);
+        backupPath(plan, targetPath);
+        writeFileSync(targetPath, serializeCodexAgentFile(codexFields));
+        const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
+        plan.results.push({ status: "applied", message });
+        recordLedger(plan, {
+          area: operation.area,
+          item: agentName,
+          action: operation.action,
+          status: "applied",
+          target: targetPath,
+          beforeHash,
+          backupPath: backupPathTaken,
+          message,
+        });
+        continue;
+      }
+
+      const sourceAgent =
+        sourceCodexIndex?.get(agentName) ?? sourceCodexIndex?.get(agentName.split("/").pop());
       if (!sourceAgent) {
         const message = `agent source missing: ${agentName}`;
         plan.results.push({ status: "skipped", message });
@@ -4378,10 +4462,8 @@ function applyMergeAgents(plan, operation) {
         });
         continue;
       }
-      const targetPath = agentTargetPath(agentName, operation.targetPath, "codex", sourceAgent);
-      const existingAgent =
-        existingCodexIndex?.get(agentName) ??
-        existingCodexIndex?.get(sourceAgent.name.split("/").pop());
+      const existingAgent = existingClaudeIndex?.get(agentName);
+      const targetPath = agentTargetPath(agentName, operation.targetPath, "claude", existingAgent);
       if (existingAgent && !overwrite.has(agentName)) {
         const message = `agent already exists: ${targetPath}`;
         plan.results.push({ status: "skipped", message });
@@ -4397,19 +4479,40 @@ function applyMergeAgents(plan, operation) {
         continue;
       }
 
-      const claudeParsed = parseClaudeAgentFile(sourceAgent.path);
-      const existingFields = existingAgent ? parseCodexAgentFile(existingAgent.path) : {};
-      const codexFields = mapAgentToCodex(claudeParsed, {
-        preserveCodex: existingFields,
+      const codexParsed = parseCodexAgentFile(sourceAgent.path);
+      const existingClaude = existingAgent
+        ? parseClaudeAgentFile(existingAgent.path)
+        : { frontmatter: {}, body: "" };
+      const claude = mapAgentToClaude(codexParsed, {
+        preserveClaude: existingClaude.frontmatter,
         fallbackName: agentName.split("/").pop(),
         callArchive: plan.callArchive,
       });
       mkdirSync(dirname(targetPath), { recursive: true });
-      // Matching is by name, so the existing file can sit elsewhere than the path being written.
+      // The old file would enumerate to the same canonical name and never stop reporting a diff.
+      const replacedPath =
+        existingAgent && !isSameFile(existingAgent.path, targetPath) ? existingAgent.path : null;
+      const replacedHash = replacedPath ? hashPath(replacedPath) : null;
+      const replacedBackup = replacedPath ? backupTargetPath(plan, replacedPath) : null;
+      if (replacedPath) backupPath(plan, replacedPath);
+      // On a rename these are two files, and a before-state naming the other restores wrong bytes.
       const beforeHash = hashPath(targetPath);
       const backupPathTaken = backupTargetPath(plan, targetPath);
       backupPath(plan, targetPath);
-      writeFileSync(targetPath, serializeCodexAgentFile(codexFields));
+      writeFileSync(targetPath, serializeClaudeAgentFile(claude.frontmatter, claude.body));
+      if (replacedPath) {
+        rmSync(replacedPath, { force: true });
+        recordLedger(plan, {
+          area: operation.area,
+          item: agentName,
+          action: "delete-items",
+          status: "applied",
+          target: replacedPath,
+          beforeHash: replacedHash,
+          backupPath: replacedBackup,
+          message: `removed superseded agent path ${replacedPath}`,
+        });
+      }
       const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
       plan.results.push({ status: "applied", message });
       recordLedger(plan, {
@@ -4422,86 +4525,9 @@ function applyMergeAgents(plan, operation) {
         backupPath: backupPathTaken,
         message,
       });
-      continue;
+    } catch (error) {
+      recordItemApplyError(plan, operation, agentName, null, error);
     }
-
-    const sourceAgent =
-      sourceCodexIndex?.get(agentName) ?? sourceCodexIndex?.get(agentName.split("/").pop());
-    if (!sourceAgent) {
-      const message = `agent source missing: ${agentName}`;
-      plan.results.push({ status: "skipped", message });
-      recordLedger(plan, {
-        area: operation.area,
-        item: agentName,
-        action: operation.action,
-        status: "skipped",
-        message,
-      });
-      continue;
-    }
-    const existingAgent = existingClaudeIndex?.get(agentName);
-    const targetPath = agentTargetPath(agentName, operation.targetPath, "claude", existingAgent);
-    if (existingAgent && !overwrite.has(agentName)) {
-      const message = `agent already exists: ${targetPath}`;
-      plan.results.push({ status: "skipped", message });
-      recordLedger(plan, {
-        area: operation.area,
-        item: agentName,
-        action: operation.action,
-        status: "skipped",
-        target: targetPath,
-        beforeHash: hashPath(targetPath),
-        message,
-      });
-      continue;
-    }
-
-    const codexParsed = parseCodexAgentFile(sourceAgent.path);
-    const existingClaude = existingAgent
-      ? parseClaudeAgentFile(existingAgent.path)
-      : { frontmatter: {}, body: "" };
-    const claude = mapAgentToClaude(codexParsed, {
-      preserveClaude: existingClaude.frontmatter,
-      fallbackName: agentName.split("/").pop(),
-      callArchive: plan.callArchive,
-    });
-    mkdirSync(dirname(targetPath), { recursive: true });
-    // The old file would enumerate to the same canonical name and never stop reporting a diff.
-    const replacedPath =
-      existingAgent && !isSameFile(existingAgent.path, targetPath) ? existingAgent.path : null;
-    const replacedHash = replacedPath ? hashPath(replacedPath) : null;
-    const replacedBackup = replacedPath ? backupTargetPath(plan, replacedPath) : null;
-    if (replacedPath) backupPath(plan, replacedPath);
-    // On a rename these are two files, and a before-state naming the other restores wrong bytes.
-    const beforeHash = hashPath(targetPath);
-    const backupPathTaken = backupTargetPath(plan, targetPath);
-    backupPath(plan, targetPath);
-    writeFileSync(targetPath, serializeClaudeAgentFile(claude.frontmatter, claude.body));
-    if (replacedPath) {
-      rmSync(replacedPath, { force: true });
-      recordLedger(plan, {
-        area: operation.area,
-        item: agentName,
-        action: "delete-items",
-        status: "applied",
-        target: replacedPath,
-        beforeHash: replacedHash,
-        backupPath: replacedBackup,
-        message: `removed superseded agent path ${replacedPath}`,
-      });
-    }
-    const message = `${existingAgent ? "replaced" : "copied"} agent ${agentName} -> ${targetPath}`;
-    plan.results.push({ status: "applied", message });
-    recordLedger(plan, {
-      area: operation.area,
-      item: agentName,
-      action: operation.action,
-      status: "applied",
-      target: targetPath,
-      beforeHash,
-      backupPath: backupPathTaken,
-      message,
-    });
   }
 }
 
