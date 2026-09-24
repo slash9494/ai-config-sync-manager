@@ -395,7 +395,7 @@ test("global MCP sync reads a single-quoted Codex http_headers_helper", () => {
   });
 });
 
-test("global MCP sync preserves an undecodable http_headers_helper on a server it was not asked to touch", () => {
+test("global MCP sync decodes a multi-line and a \\U-escaped http_headers_helper on a server it was not asked to touch", () => {
   const fixture = createFixture();
   mkdirSync(join(fixture.home, ".codex"), { recursive: true });
   const multiline = '"""\nmint --emoji\n"""';
@@ -430,11 +430,8 @@ test("global MCP sync preserves an undecodable http_headers_helper on a server i
   const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
 
   assert.match(config, /\[mcp_servers\.fresh\]/);
-  assert.ok(
-    config.includes(`http_headers_helper = ${multiline}`),
-    `multi-line helper was not preserved verbatim:\n${config}`
-  );
-  assert.match(config, /http_headers_helper = "mint \\U0001F600"/);
+  assert.match(config, /^http_headers_helper = "mint --emoji"$/m);
+  assert.match(config, /^http_headers_helper = "mint 😀"$/m);
 });
 
 test("global MCP sync preserves a multi-line literal http_headers_helper on a server it was not asked to touch", () => {
@@ -469,10 +466,7 @@ test("global MCP sync preserves a multi-line literal http_headers_helper on a se
   const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
 
   assert.match(config, /\[mcp_servers\.fresh\]/);
-  assert.ok(
-    config.includes(`http_headers_helper = ${multilineLiteral}`),
-    `multi-line literal helper was not preserved verbatim:\n${config}`
-  );
+  assert.match(config, /^http_headers_helper = "mint --header 'X-Api: tok'"$/m);
 });
 
 test("global MCP sync tells a multi-line literal http_headers_helper apart from a single-line one in the same config", () => {
@@ -509,10 +503,7 @@ test("global MCP sync tells a multi-line literal http_headers_helper apart from 
   ]);
   const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
 
-  assert.ok(
-    config.includes(`http_headers_helper = ${multilineLiteral}`),
-    `multi-line literal helper was not preserved verbatim:\n${config}`
-  );
+  assert.match(config, /^http_headers_helper = "mint --emoji"$/m);
   assert.match(config, /http_headers_helper = "\/usr\/local\/bin\/mint --header \\"X-Api: tok\\""/);
 });
 
@@ -555,6 +546,18 @@ test("global MCP sync preserves literal and multi-line command, url, and bearer_
     "MLLITERAL_TOKEN",
     "'''",
   ].join("\n");
+  const multilineBasicRewritten = [
+    "[mcp_servers.mlbasic]",
+    'command = "node --harmony"',
+    'url = "https://mcp.mlbasic.io"',
+    'bearer_token_env_var = "MLBASIC_TOKEN"',
+  ].join("\n");
+  const multilineLiteralRewritten = [
+    "[mcp_servers.mlliteral]",
+    'command = "C:\\\\bin\\\\thing.exe"',
+    'url = "https://mcp.mlliteral.io"',
+    'bearer_token_env_var = "MLLITERAL_TOKEN"',
+  ].join("\n");
   writeFileSync(
     join(fixture.home, ".codex/config.toml"),
     [literalServer, multilineBasicServer, multilineLiteralServer, ""].join("\n")
@@ -580,12 +583,12 @@ test("global MCP sync preserves literal and multi-line command, url, and bearer_
   assert.match(config, /\[mcp_servers\.fresh\]/);
   assert.ok(config.includes(literalRewritten), `literal strings lost their values:\n${config}`);
   assert.ok(
-    config.includes(multilineBasicServer),
-    `multi-line basic strings were not preserved verbatim:\n${config}`
+    config.includes(multilineBasicRewritten),
+    `multi-line basic strings lost their values:\n${config}`
   );
   assert.ok(
-    config.includes(multilineLiteralServer),
-    `multi-line literal strings were not preserved verbatim:\n${config}`
+    config.includes(multilineLiteralRewritten),
+    `multi-line literal strings lost their values:\n${config}`
   );
 });
 
@@ -623,7 +626,7 @@ test("global MCP sync reads a literal Codex command into a Claude stdio server w
   assert.equal(report.entries.length, 0);
 });
 
-test("global MCP sync keeps a multi-line basic Codex command in the Codex config and out of Claude", () => {
+test("global MCP sync carries a multi-line basic Codex command through to Claude as a stdio server", () => {
   const fixture = createFixture();
   mkdirSync(join(fixture.home, ".codex"), { recursive: true });
   const multiline = '"""\nnode --harmony\n"""';
@@ -662,11 +665,231 @@ test("global MCP sync keeps a multi-line basic Codex command in the Codex config
   const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
   const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
 
-  assert.ok(
-    config.includes(`command = ${multiline}`),
-    `multi-line basic command was not preserved verbatim:\n${config}`
+  assert.match(config, /^command = "node --harmony"$/m);
+  assert.deepEqual(claude.mcpServers.mlbasic, {
+    type: "stdio",
+    command: "node --harmony",
+    args: ["server.js"],
+  });
+});
+
+test("global MCP sync ignores a command line buried inside a multi-line http_headers_helper", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.hooky]",
+      'command = "npx"',
+      'args = ["-y","real-server"]',
+      "http_headers_helper = '''",
+      "#!/bin/sh",
+      "command = 'evil'",
+      "'''",
+      "",
+    ].join("\n")
   );
-  assert.deepEqual(claude.mcpServers.mlbasic, { args: ["server.js"] });
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /^command = "npx"$/m);
+  assert.doesNotMatch(config, /command = "evil"/);
+  assert.match(config, /^http_headers_helper = "#!\/bin\/sh\\ncommand = 'evil'"$/m);
+});
+
+test("global MCP sync decodes escaped-quote, four-quote, and \\U string forms on servers it was not asked to touch", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.escapedquote]",
+      'http_headers_helper = """a\\"b"""',
+      'url = "https://mcp.escapedquote.io"',
+      "[mcp_servers.quadliteral]",
+      "http_headers_helper = ''''that,' she said''''",
+      "[mcp_servers.quadbasic]",
+      'http_headers_helper = """"quoted""""',
+      "[mcp_servers.unicode]",
+      'command = "mint \\U0001F600"',
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(config, /^http_headers_helper = "a\\"b"$/m);
+  assert.match(config, /^url = "https:\/\/mcp\.escapedquote\.io"$/m);
+  assert.match(config, /^http_headers_helper = "'that,' she said'"$/m);
+  assert.match(config, /^http_headers_helper = "\\"quoted\\""$/m);
+  assert.match(config, /^command = "mint 😀"$/m);
+});
+
+test("global MCP sync reads a multi-line literal Codex command without a trailing newline", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    ["[mcp_servers.mlliteral]", "command = '''", "/usr/local/bin/my-server", "'''", ""].join("\n")
+  );
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:mlliteral",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+
+  assert.deepEqual(claude.mcpServers.mlliteral, {
+    type: "stdio",
+    command: "/usr/local/bin/my-server",
+  });
+});
+
+test("global MCP sync keeps indented Codex keys on a server it was not asked to touch", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    ["[mcp_servers.indented]", '  command = "node"', '  args = ["c"]', ""].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.ok(
+    config.includes(["[mcp_servers.indented]", 'command = "node"', 'args = ["c"]'].join("\n")),
+    `indented keys were dropped:\n${config}`
+  );
+});
+
+test("global MCP sync treats both empty Codex command forms the same", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.emptyliteral]",
+      "command = ''",
+      'url = "https://mcp.emptyliteral.io"',
+      "[mcp_servers.emptymultiline]",
+      "command = ''''''",
+      'url = "https://mcp.emptymultiline.io"',
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { fresh: { type: "stdio", command: "node" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:fresh",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const config = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.doesNotMatch(config, /^command = ""$/m);
+  assert.ok(
+    config.includes(
+      ["[mcp_servers.emptyliteral]", 'url = "https://mcp.emptyliteral.io"'].join("\n")
+    ),
+    `the single-quote empty command did not drop out cleanly:\n${config}`
+  );
+  assert.ok(
+    config.includes(
+      ["[mcp_servers.emptymultiline]", 'url = "https://mcp.emptymultiline.io"'].join("\n")
+    ),
+    `the six-quote empty command did not drop out cleanly:\n${config}`
+  );
+});
+
+test("global MCP sync reads a CRLF Codex config into a Claude stdio server", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    '[mcp_servers.win]\r\ncommand = "node"\r\nargs = ["w.js"]\r\n'
+  );
+  writeJson(join(fixture.home, ".claude.json"), { mcpServers: {} });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:win",
+    "--from",
+    "codex",
+    "--to",
+    "claude",
+    "--apply",
+  ]);
+  const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+
+  assert.deepEqual(claude.mcpServers.win, {
+    type: "stdio",
+    command: "node",
+    args: ["w.js"],
+  });
 });
 
 test("global MCP sync maps Claude headersHelper to Codex http_headers_helper", () => {
