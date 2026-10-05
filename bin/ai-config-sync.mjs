@@ -46,6 +46,20 @@ const CODEX_MCP_STRING_FIELDS = [
   ["bearerTokenEnvVar", "bearer_token_env_var"],
   ["headersHelper", "http_headers_helper"],
 ];
+const CODEX_MCP_RENDERED_KEYS = new Set([
+  ...CODEX_MCP_STRING_FIELDS.map(([, tomlKey]) => tomlKey),
+  "args",
+  "env",
+]);
+const CLAUDE_MCP_RENDERED_KEYS = new Set([
+  "type",
+  "command",
+  "url",
+  "args",
+  "env",
+  "headers",
+  "headersHelper",
+]);
 const runtimePackage = readRuntimePackage();
 
 /**
@@ -1005,8 +1019,10 @@ function statusPreview(entry, change, item, ignoreRules = []) {
     const codexServers = readCodexMcpServerDetails(entry.codexMcpPaths ?? entry.codexPath);
     const targetServer = to === "claude" ? claudeServers[item] : codexServers[item];
     const sourceServer = from === "claude" ? claudeServers[item] : codexServers[item];
+    const appliedServer =
+      to === "codex" ? carryCodexExtraTomlLines(targetServer, sourceServer) : sourceServer;
     const targetContent = renderCodexMcpServers({ [item]: targetServer ?? {} });
-    const sourceContent = renderCodexMcpServers({ [item]: sourceServer ?? {} });
+    const sourceContent = renderCodexMcpServers({ [item]: appliedServer ?? {} });
     return contentChangePreview(
       `${toLabel} current`,
       targetContent,
@@ -1918,6 +1934,15 @@ function permissionReviewNotes(itemNames) {
   for (const itemName of itemNames) {
     const { bucket, value } = parsePermissionItem(itemName);
     const pattern = bashPattern(value);
+
+    if (pattern?.isTruncated) {
+      notes.push(
+        codexPrefixRuleForPermission(bucket, value)
+          ? `${value}: Codex prefix_rule matches whole words only, so this wildcard cannot carry over; written as the shorter prefix ${JSON.stringify(pattern.parts)}, which covers more commands`
+          : `${value}: Codex prefix_rule matches whole words only, so this wildcard cannot carry over; not migrated to rules/default.rules`
+      );
+      continue;
+    }
 
     if (pattern?.risky) {
       notes.push(
@@ -5254,7 +5279,8 @@ function isMcpServerScopePermission(mcp) {
 
 function writeCodexPermissionRules(path, itemNames) {
   const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
-  const lines = [];
+  // Replacing the block with only this operation's items wiped rules synced earlier.
+  const lines = readTextBlockLines(existing, "permissions-rules");
 
   for (const itemName of itemNames) {
     const { bucket, value } = parsePermissionItem(itemName);
@@ -5270,6 +5296,15 @@ function writeCodexPermissionRules(path, itemNames) {
     path,
     replaceTextBlock(existing, "permissions-rules", uniqueStrings(lines).join("\n"))
   );
+}
+
+function readTextBlockLines(text, name) {
+  const pattern = new RegExp(
+    `${escapeRegExp(`# BEGIN ai-config-sync ${name}`)}\\n([\\s\\S]*?)\\n?${escapeRegExp(`# END ai-config-sync ${name}`)}`,
+    "m"
+  );
+  const match = text.match(pattern);
+  return match ? match[1].split("\n").filter((line) => line.trim()) : [];
 }
 
 function replaceTextBlock(text, name, body) {
@@ -5336,6 +5371,8 @@ function stripMcpTablesFromSegment(segment, serverNames) {
 function codexPrefixRuleForPermission(bucket, value) {
   const pattern = bashPattern(value);
   if (!pattern) return null;
+  // Cutting an allow rule at its wildcard would approve every command sharing the prefix.
+  if (pattern.isTruncated && (bucket === "allow" || pattern.parts.length === 0)) return null;
 
   const decision = bucket === "deny" ? "forbidden" : bucket === "ask" ? "prompt" : "allow";
   return `prefix_rule(pattern=${JSON.stringify(pattern.parts)}, decision=${JSON.stringify(decision)}, justification=${JSON.stringify(`Migrated from Claude ${bucket} permission ${value}.`)})`;
@@ -5348,10 +5385,14 @@ function bashPattern(value) {
 
   const raw = match[1]
     .trim()
-    .replace(/:\*$/, " *")
+    .replace(/:\*(?=\s|$)/g, " *")
     .replace(/\s+\*$/, "");
-  const parts = raw.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { risky: true, parts: ["bash"] };
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { risky: true, parts: ["bash"] };
+  // prefix_rule compares whole tokens literally, so a Claude * that is not trailing can only be cut off.
+  const wildcardIndex = tokens.findIndex((token) => token.includes("*"));
+  const isTruncated = wildcardIndex !== -1;
+  const parts = isTruncated ? tokens.slice(0, wildcardIndex) : tokens;
 
   const riskyCommands = new Set([
     "bash",
@@ -5370,6 +5411,7 @@ function bashPattern(value) {
   return {
     risky: riskyCommands.has(parts[0]),
     parts,
+    isTruncated,
   };
 }
 
@@ -5441,6 +5483,10 @@ function mergeMcpIntoCodex(targetPath, sourcePath, sourceHost, serverNames) {
   );
   const targetServers = readCodexMcpServers(targetPath);
   const merged = { ...targetServers, ...sourceServers };
+  // A server being overwritten keeps the target-only keys the source host has no way to express.
+  for (const name of Object.keys(sourceServers)) {
+    merged[name] = carryCodexExtraTomlLines(targetServers[name], sourceServers[name]);
+  }
   const original = existsSync(targetPath) ? readFileSync(targetPath, "utf8") : "";
   // Strip top-level [mcp_servers.X] tables for any X we're about to render inside
   // the managed block — otherwise the same key appears twice and TOML rejects the file.
@@ -5461,14 +5507,30 @@ function mergeMcpIntoClaude(targetPath, sourcePath, sourceHost, serverNames) {
   if (projectKey) {
     target.projects ??= {};
     target.projects[projectKey] ??= {};
-    target.projects[projectKey].mcpServers = {
-      ...(target.projects[projectKey].mcpServers ?? {}),
-      ...sourceServers,
-    };
+    target.projects[projectKey].mcpServers = mergeClaudeMcpServerEntries(
+      target.projects[projectKey].mcpServers,
+      sourceServers
+    );
   } else {
-    target.mcpServers = { ...(target.mcpServers ?? {}), ...sourceServers };
+    target.mcpServers = mergeClaudeMcpServerEntries(target.mcpServers, sourceServers);
   }
   writeFileSync(file, `${JSON.stringify(target, null, 2)}\n`);
+}
+
+// Replacing the whole entry dropped Claude-only keys such as alwaysLoad; a transport switch drops them too.
+function mergeClaudeMcpServerEntries(existingServers = {}, sourceServers) {
+  const merged = { ...existingServers };
+  for (const [name, server] of Object.entries(sourceServers)) {
+    const existing = existingServers[name];
+    const claudeOnlyFields =
+      existing && typeof existing === "object" && isSameMcpTransport(existing, server)
+        ? Object.fromEntries(
+            Object.entries(existing).filter(([key]) => !CLAUDE_MCP_RENDERED_KEYS.has(key))
+          )
+        : {};
+    merged[name] = { ...claudeOnlyFields, ...server };
+  }
+  return merged;
 }
 
 function deleteClaudeMcpServers(targetPath, serverNames) {
@@ -5835,7 +5897,7 @@ function readCodexMcpServerDetails(path) {
     servers[match[1]] = server;
   }
 
-  return normalizeMcpServerDetails(servers);
+  return attachCodexMcpExtraTomlLines(normalizeMcpServerDetails(servers), text);
 }
 
 function readClaudeMcpServers(path) {
@@ -5877,7 +5939,70 @@ function readCodexMcpServers(path) {
     servers[match[1]] = server;
   }
 
-  return normalizeMcpServers(servers);
+  return attachCodexMcpExtraTomlLines(normalizeMcpServers(servers), text);
+}
+
+// Attached after normalizing so a JSON source can never smuggle raw TOML lines into config.toml.
+function attachCodexMcpExtraTomlLines(servers, text) {
+  const tablePattern = /^\[mcp_servers\.([^\].]+)\]\n([\s\S]*?)(?=^\[|(?![\s\S]))/gm;
+  for (const match of text.matchAll(tablePattern)) {
+    const extraTomlLines = readCodexMcpExtraTomlLines(match[2]);
+    if (servers[match[1]] && Object.keys(extraTomlLines).length > 0) {
+      servers[match[1]] = { ...servers[match[1]], extraTomlLines };
+    }
+  }
+  return servers;
+}
+
+// A server switching between stdio and http must not keep the other transport's keys, such as cwd.
+function carryCodexExtraTomlLines(targetServer, sourceServer) {
+  const extraTomlLines = {
+    ...(isSameMcpTransport(targetServer, sourceServer) ? targetServer?.extraTomlLines : {}),
+    ...sourceServer?.extraTomlLines,
+  };
+  return Object.keys(extraTomlLines).length > 0
+    ? { ...sourceServer, extraTomlLines }
+    : sourceServer;
+}
+
+function isSameMcpTransport(left, right) {
+  return Boolean(left?.command) === Boolean(right?.command);
+}
+
+// Re-rendering a server from parsed fields alone dropped keys this tool does not map, such as auth.
+function readCodexMcpExtraTomlLines(body) {
+  const extraTomlLines = {};
+  let closer = null;
+  let bracketDepth = 0;
+
+  for (const line of body.split(/\r?\n/)) {
+    if (closer) {
+      if (line.includes(closer)) closer = null;
+      continue;
+    }
+    if (bracketDepth > 0) {
+      bracketDepth += measureTomlBracketDepth(line);
+      continue;
+    }
+    const match = line.match(/^([A-Za-z0-9_-]+)\s*=\s*(.*)$/);
+    if (!match) continue;
+    const [, key, value] = match;
+    const opener = value.startsWith('"""') ? '"""' : value.startsWith("'''") ? "'''" : null;
+    if (opener) {
+      if (!value.slice(3).includes(opener)) closer = opener;
+      continue;
+    }
+    bracketDepth = /^[[{]/.test(value) ? measureTomlBracketDepth(value) : 0;
+    if (bracketDepth > 0 || CODEX_MCP_RENDERED_KEYS.has(key)) continue;
+    extraTomlLines[key] = line.trimEnd();
+  }
+
+  return extraTomlLines;
+}
+
+// Brackets inside strings are counted too; a miscount only skips keys, never invents one.
+function measureTomlBracketDepth(text) {
+  return (text.match(/[[{]/g)?.length ?? 0) - (text.match(/[\]}]/g)?.length ?? 0);
 }
 
 // JSON.parse reads only one of TOML's four string forms, and decoding the others to "" deleted them.
@@ -6080,6 +6205,7 @@ function renderCodexMcpServers(servers) {
           .join(", ")} }`
       );
     }
+    lines.push(...Object.values(server.extraTomlLines ?? {}));
   }
 
   return lines.join("\n");
@@ -6625,6 +6751,8 @@ function compareInstructions(
   const codex = instructionState("codex", codexPaths);
 
   if (!claude.exists && !codex.exists) return;
+  // Claude reads a project's AGENTS.md itself when CLAUDE.md is absent, and creating one would turn that off.
+  if (scope === "project" && !claude.exists) return;
   const overrides = activeOverridesForFilePair(claudePath, codexPath);
   const masked = maskBodiesWithOverrides(claude.content, codex.content, overrides);
   if (instructionsEquivalent(masked.claudeBody, masked.codexBody)) return;
@@ -7488,7 +7616,7 @@ function itemMappingQuality(area, item) {
   if (isAgentPermission(value)) return "unsupported";
 
   const rule = codexPrefixRuleForPermission(bucket, value);
-  if (rule) return "exact";
+  if (rule) return bashPattern(value)?.isTruncated ? "approximate" : "exact";
   if (["Write", "Edit", "MultiEdit"].includes(value)) return "equivalent";
   if (bucket === "allow" && value === "WebSearch") return "exact";
   if (bucket === "allow" && value === "WebFetch") return "approximate";
@@ -7604,18 +7732,31 @@ function codexRulePermissionItems(path) {
   const items = [];
 
   for (const match of text.matchAll(
-    /prefix_rule\(pattern=(\[[^)]*?\]),\s*decision="(allow|prompt|forbidden)"/g
+    /prefix_rule\(pattern=(\[[^)]*?\]),\s*decision="(allow|prompt|forbidden)"(?:,\s*justification=("(?:[^"\\]|\\.)*"))?/g
   )) {
     const parts = parseJsonLike(match[1], []);
     if (!Array.isArray(parts) || parts.some((part) => typeof part !== "string")) continue;
 
     const bucket = match[2] === "forbidden" ? "deny" : match[2] === "prompt" ? "ask" : "allow";
     const isBareBash = parts.length === 0 || (parts.length === 1 && parts[0] === "bash");
-    const value = isBareBash ? "Bash" : `Bash(${parts.join(" ")}:*)`;
+    const value =
+      readMigratedClaudeBashValue(bucket, parts, match[3]) ??
+      (isBareBash ? "Bash" : `Bash(${parts.join(" ")}:*)`);
     items.push(`${bucket}:${value}`);
   }
 
   return items;
+}
+
+// A rule cut at its wildcard reads back as a different, broader rule, which the next sync then deletes.
+function readMigratedClaudeBashValue(bucket, parts, justificationToken) {
+  const justification = justificationToken ? parseJsonLike(justificationToken, "") : "";
+  const match =
+    typeof justification === "string" &&
+    justification.match(/^Migrated from Claude (allow|ask|deny) permission (Bash(?:\(.*\))?)\.$/);
+  if (!match || match[1] !== bucket) return null;
+  const pattern = bashPattern(match[2]);
+  return pattern && JSON.stringify(pattern.parts) === JSON.stringify(parts) ? match[2] : null;
 }
 
 function codexMcpApprovalItems(text) {

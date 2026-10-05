@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -111,6 +111,64 @@ test("second apply is idempotent", () => {
       secondAllow.length,
       firstAllow.length,
       `permissions.allow length must not grow: first=${JSON.stringify(firstAllow)} second=${JSON.stringify(secondAllow)}`
+    );
+  });
+});
+
+function layCodexManagedRule(fixture, ruleLine) {
+  mkdirSync(join(fixture.home, ".codex", "rules"), { recursive: true });
+  writeFileSync(join(fixture.home, ".codex", "config.toml"), "");
+  writeFileSync(
+    join(fixture.home, ".codex", "rules", "default.rules"),
+    `# BEGIN ai-config-sync permissions-rules\n${ruleLine}\n# END ai-config-sync permissions-rules\n`
+  );
+}
+
+function readClaudeDeny(fixture) {
+  const settings = JSON.parse(readFileSync(join(fixture.home, ".claude", "settings.json"), "utf8"));
+  return (settings.permissions && settings.permissions.deny) || [];
+}
+
+test("codex to claude permissions sync restores a deny rule cut at its wildcard from its justification", () => {
+  withFixture("permissions-justification-restore", (fixture) => {
+    layCodexManagedRule(
+      fixture,
+      'prefix_rule(pattern=["git","push"], decision="forbidden", justification="Migrated from Claude deny permission Bash(git push:* --force).")'
+    );
+
+    const result = applyPermissions(fixture);
+    assert.equal(result.status, 0, `apply failed: ${result.output}`);
+
+    const deny = readClaudeDeny(fixture);
+    assert.ok(
+      deny.includes("Bash(git push:* --force)"),
+      `expected original rule: ${JSON.stringify(deny)}`
+    );
+    assert.ok(
+      !deny.includes("Bash(git push:*)"),
+      `broader rule must not be added: ${JSON.stringify(deny)}`
+    );
+  });
+});
+
+test("codex to claude permissions sync ignores a justification whose rule does not match the pattern", () => {
+  withFixture("permissions-justification-mismatch", (fixture) => {
+    layCodexManagedRule(
+      fixture,
+      'prefix_rule(pattern=["git","push"], decision="forbidden", justification="Migrated from Claude deny permission Bash(npm run build:*).")'
+    );
+
+    const result = applyPermissions(fixture);
+    assert.equal(result.status, 0, `apply failed: ${result.output}`);
+
+    const deny = readClaudeDeny(fixture);
+    assert.ok(
+      deny.includes("Bash(git push:*)"),
+      `expected pattern fallback: ${JSON.stringify(deny)}`
+    );
+    assert.ok(
+      !deny.includes("Bash(npm run build:*)"),
+      `mismatched justification must be ignored: ${JSON.stringify(deny)}`
     );
   });
 });

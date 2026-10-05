@@ -319,7 +319,9 @@ The active path and rule count are echoed in `status` output as `Status ignore: 
 | --- | --- |
 | `permissions.allow: ["Write"]` | `sandbox_mode = "workspace-write"` |
 | command-like `permissions.allow` (e.g. `Bash(npm:*)`) | `approval_policy = "on-request"` |
-| `.mcp.json` server entries | `[mcp_servers.<name>]` TOML tables |
+| deny/ask `Bash(...)` with a wildcard before the end (e.g. `Bash(git push:* --force)`) | `prefix_rule` cut at the wildcard (`["git","push"]`), which covers more commands; such allow rules are not migrated |
+| `.mcp.json` server entries | `[mcp_servers.<name>]` TOML tables; per-server keys the tool does not map (e.g. `auth`, `alwaysLoad`) stay on the target |
+| project with no `CLAUDE.md` | `<cwd>/AGENTS.md` is left alone; Claude reads it directly, so no `CLAUDE.md` is created |
 | `hooks.PreToolUse` / `PostToolUse` | mapped where a Codex equivalent exists, else `manual` |
 | `~/.claude/skills/<name>/SKILL.md` | `~/.codex/skills/<name>/SKILL.md` |
 
