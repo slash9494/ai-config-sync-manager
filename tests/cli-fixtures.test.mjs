@@ -8467,3 +8467,215 @@ test("board rejects an unknown option", () => {
     }
   );
 });
+
+test("global MCP sync keeps Codex-only server keys on the server it overwrites and on the ones it leaves alone", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    [
+      "[mcp_servers.ema]",
+      'url = "https://old.example/mcp"',
+      'auth = "ema_auth"',
+      'enabled_tools = ["read"]',
+      'note = """',
+      'sandbox = "inside-a-string"',
+      '"""',
+      "",
+      "[mcp_servers.keep]",
+      'command = "keep-cmd"',
+      "startup_timeout_sec = 30",
+      "",
+    ].join("\n")
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { ema: { type: "http", url: "https://new.example/mcp" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:ema",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const toml = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(
+    toml,
+    /\[mcp_servers\.ema\]\nurl = "https:\/\/new\.example\/mcp"\nauth = "ema_auth"\nenabled_tools = \["read"\]\n/
+  );
+  assert.match(toml, /\[mcp_servers\.keep\]\ncommand = "keep-cmd"\nstartup_timeout_sec = 30\n/);
+  assert.doesNotMatch(toml, /inside-a-string/);
+
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "global", "--include", "mcp:ema", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
+test("permissions sync cuts a deny rule at its non-trailing wildcard and skips such an allow rule", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".claude"), { recursive: true });
+  writeJson(join(fixture.home, ".claude/settings.json"), {
+    permissions: {
+      deny: ["Bash(git push:* --force)"],
+      allow: ["Bash(git -C * status *)", "Bash(npm run test:*)"],
+    },
+  });
+
+  const output = runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "permissions",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const rules = readFileSync(join(fixture.home, ".codex/rules/default.rules"), "utf8");
+
+  assert.match(rules, /prefix_rule\(pattern=\["git","push"\], decision="forbidden"/);
+  assert.match(rules, /prefix_rule\(pattern=\["npm","run","test"\], decision="allow"/);
+  assert.doesNotMatch(rules, /git -C/);
+  assert.doesNotMatch(rules, /"push:\*"/);
+  assert.match(
+    output,
+    /Bash\(git -C \* status \*\): Codex prefix_rule matches whole words only, so this wildcard cannot carry over; not migrated/
+  );
+});
+
+test("permissions sync keeps a deny rule cut at its wildcard across repeated syncs", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".claude"), { recursive: true });
+  writeJson(join(fixture.home, ".claude/settings.json"), {
+    permissions: { deny: ["Bash(git push * --force)"], allow: ["Bash(git:*)"] },
+  });
+  const syncArgs = [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "permissions",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ];
+
+  for (let round = 0; round < 3; round += 1) {
+    runCli(fixture, syncArgs);
+    const rules = readFileSync(join(fixture.home, ".codex/rules/default.rules"), "utf8");
+    assert.match(rules, /prefix_rule\(pattern=\["git","push"\], decision="forbidden"/);
+    assert.match(rules, /prefix_rule\(pattern=\["git"\], decision="allow"/);
+  }
+
+  const report = JSON.parse(
+    runCli(fixture, ["status", "--scope", "global", "--include", "permissions", "--json"])
+  );
+  assert.equal(report.entries.length, 0);
+});
+
+test("permissions sync of one new rule keeps the rules synced before it", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".claude"), { recursive: true });
+  const settingsPath = join(fixture.home, ".claude/settings.json");
+  writeJson(settingsPath, { permissions: { allow: ["Bash(git:*)"] } });
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "permissions",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+
+  writeJson(settingsPath, { permissions: { allow: ["Bash(git:*)", "Bash(ls:*)"] } });
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "permissions:allow:Bash(ls:*)",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const rules = readFileSync(join(fixture.home, ".codex/rules/default.rules"), "utf8");
+
+  assert.match(rules, /prefix_rule\(pattern=\["git"\], decision="allow"/);
+  assert.match(rules, /prefix_rule\(pattern=\["ls"\], decision="allow"/);
+});
+
+test("global MCP sync drops stdio-only Codex keys when the server switches to http", () => {
+  const fixture = createFixture();
+  mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+  writeFileSync(
+    join(fixture.home, ".codex/config.toml"),
+    '[mcp_servers.ema]\ncommand = "old-cmd"\ncwd = "/srv"\n'
+  );
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: { ema: { type: "http", url: "https://new.example/mcp" } },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:ema",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const toml = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.match(toml, /url = "https:\/\/new\.example\/mcp"/);
+  assert.doesNotMatch(toml, /cwd/);
+});
+
+test("global MCP sync never writes raw TOML lines taken from a Claude JSON server entry", () => {
+  const fixture = createFixture();
+  writeJson(join(fixture.home, ".claude.json"), {
+    mcpServers: {
+      ema: {
+        type: "http",
+        url: "https://new.example/mcp",
+        extraTomlLines: { injected: 'sandbox_mode = "danger-full-access"' },
+      },
+    },
+  });
+
+  runCli(fixture, [
+    "sync",
+    "--scope",
+    "global",
+    "--include",
+    "mcp:ema",
+    "--from",
+    "claude",
+    "--to",
+    "codex",
+    "--apply",
+  ]);
+  const toml = readFileSync(join(fixture.home, ".codex/config.toml"), "utf8");
+
+  assert.doesNotMatch(toml, /danger-full-access/);
+});

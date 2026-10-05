@@ -672,6 +672,17 @@
       "schema_desc_hash": "e3b0c44298fc",
       "recheck_after": "2027-02-27"
     },
+    "cloud": {
+      "reason": "Codex cloud-owned feature settings (cloud.skills enablement); skills sync moves skill files, not host enablement, and Claude disableBundledSkills gates bundled skills, not cloud-provided ones.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "91c248620068",
+      "recheck_after": "2027-04-03"
+    },
     "computer_use": {
       "reason": "Codex OS-level app-control policy (macOS bundle ids, Windows executables); Claude Code has no computer-control configuration surface.",
       "decided_in": "#56",
@@ -716,6 +727,17 @@
       "schema_desc_hash": "40b9b46a9b43",
       "recheck_after": "2026-11-22"
     },
+    "mcp_enterprise_managed_auth": {
+      "reason": "Codex MCP enterprise-managed auth (EMA) IdP; ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "8e9759582bdc",
+      "recheck_after": "2027-04-03"
+    },
     "mcp_optional_startup_grace_ms": {
       "reason": "Codex shared startup grace for optional MCP servers; Claude MCP config has no startup timeout key (MCP_TIMEOUT is a global env var).",
       "decided_in": "#60",
@@ -737,6 +759,17 @@
       },
       "schema_desc_hash": "e84e31a3dbdf",
       "recheck_after": "2026-11-22"
+    },
+    "model_post_turn_compact_threshold_percent": {
+      "reason": "Codex turn-end compaction threshold; Claude autoCompactEnabled is an on/off toggle (already dropped) with no threshold key.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "9e15fad16651",
+      "recheck_after": "2027-04-03"
     },
     "orchestrator": {
       "reason": "Codex-internal orchestrator feature settings; nearest Claude concepts (teammateMode, agent-teams env flags) are UI/experimental toggles with different semantics.",
@@ -828,6 +861,17 @@
       "schema_desc_hash": "0c9ac879d694",
       "recheck_after": "2027-03-11"
     },
+    "AppConfig.omit_tools_from": {
+      "reason": "Codex per-connector tool-surface filter (code_mode/deferred/direct); Claude gates MCP tools by name through permissions. Same family as RawMcpServerConfig.omit_tools_from; ai-config-sync never writes [apps].",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "52b0090b82d6",
+      "recheck_after": "2027-04-03"
+    },
     "AppLinkConfig.approvals_reviewer": {
       "reason": "Codex per-account reviewer for approval prompts; Claude permissions carry no reviewer identity.",
       "decided_in": "#60",
@@ -860,6 +904,61 @@
       },
       "schema_desc_hash": "b748ea36aa10",
       "recheck_after": "2027-01-02"
+    },
+    "AutoReviewToml.circuit_break_action": {
+      "reason": "Codex Guardian auto-review setting; Claude has no equivalent second-model review pass over tool calls.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "6bf15d462fb8",
+      "recheck_after": "2027-04-03"
+    },
+    "AutoReviewToml.conversation_history_max_output_tokens": {
+      "reason": "Codex Guardian auto-review setting; Claude has no equivalent second-model review pass over tool calls.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "efa883acf683",
+      "recheck_after": "2027-04-03"
+    },
+    "AutoReviewToml.experimental_conversation_history_prompt": {
+      "reason": "Codex Guardian auto-review setting; Claude has no equivalent second-model review pass over tool calls.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "7dcd430ae525",
+      "recheck_after": "2027-04-03"
+    },
+    "AutoReviewToml.experimental_policy_template": {
+      "reason": "Codex Guardian auto-review setting; Claude has no equivalent second-model review pass over tool calls.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "b2522bf0392b",
+      "recheck_after": "2027-04-03"
+    },
+    "AutoReviewToml.extra_policy": {
+      "reason": "Codex Guardian auto-review setting; Claude has no equivalent second-model review pass over tool calls.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c59716e2b7bb",
+      "recheck_after": "2027-04-03"
     },
     "AwsAuthRefreshConfig.args": {
       "reason": "Codex AWS model-provider credential refresh command; Claude has no provider auth-refresh hook in settings.",
@@ -997,6 +1096,17 @@
       },
       "recheck_after": "2027-02-27"
     },
+    "CloudToml.skills": {
+      "reason": "Codex cloud-skills enablement toggle (successor to OrchestratorToml.skills); skills sync moves skill files, not host enablement. See codex_top_level.cloud.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f6afea7899e5",
+      "recheck_after": "2027-04-03"
+    },
     "CodeModeConfigToml.default_exec_yield_time_ms": {
       "reason": "Codex code-mode exec yield timeout; Claude has no code-mode execution model.",
       "decided_in": "#53",
@@ -1018,6 +1128,28 @@
       },
       "schema_desc_hash": "019e10488254",
       "recheck_after": "2027-01-02"
+    },
+    "CodeModeConfigToml.experimental_show_cell_overhead": {
+      "reason": "Codex code-mode cell timing diagnostics; Claude has no code-mode execution model.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "abfa31e123e2",
+      "recheck_after": "2027-04-03"
+    },
+    "CodeModeConfigToml.tool_input_schema_max_bytes": {
+      "reason": "Codex code-mode tool input type size cap; Claude has no code-mode execution model.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "0f76ef03e700",
+      "recheck_after": "2027-04-03"
     },
     "CodeModeHostConfigToml.disable_in_process_fallback": {
       "reason": "Codex code-mode in-process fallback switch; Claude has no code-mode execution surface.",
@@ -1140,6 +1272,26 @@
       },
       "recheck_after": "2027-02-27"
     },
+    "ConfigProfile.features.agent_message_board": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "ConfigProfile.features.analytics_plan_history": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
     "ConfigProfile.features.api_key_model_discovery": {
       "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
       "decided_in": "#64",
@@ -1250,6 +1402,26 @@
       },
       "recheck_after": "2027-02-22"
     },
+    "ConfigProfile.features.daemon_auto_start": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "ConfigProfile.features.defer_mailbox_preemption": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
     "ConfigProfile.features.executed_tool_call_metadata": {
       "reason": "Codex host feature toggle for executed-tool-call metadata; Claude has no equivalent switch.",
       "decided_in": "#50",
@@ -1259,6 +1431,16 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-02-11"
+    },
+    "ConfigProfile.features.guardian_conversation_history_tools": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
     },
     "ConfigProfile.features.guardian_enhanced_node_repl_transcripts": {
       "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
@@ -1300,6 +1482,16 @@
       },
       "recheck_after": "2027-02-22"
     },
+    "ConfigProfile.features.guardian_root_handoff_context": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
     "ConfigProfile.features.image_resize_notice": {
       "reason": "Codex host feature toggle for the image-resize notice; Claude has no equivalent switch.",
       "decided_in": "#50",
@@ -1340,6 +1532,16 @@
       },
       "recheck_after": "2027-02-27"
     },
+    "ConfigProfile.features.instant_interrupt": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
     "ConfigProfile.features.local_thread_store_shared_compression": {
       "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
       "decided_in": "#60",
@@ -1360,6 +1562,16 @@
       },
       "recheck_after": "2027-03-11"
     },
+    "ConfigProfile.features.nonfatal_clock_read_errors": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
     "ConfigProfile.features.omit_app_server_notification_media": {
       "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
       "decided_in": "#60",
@@ -1379,6 +1591,16 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-03-11"
+    },
+    "ConfigProfile.features.prefer_mxc": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
     },
     "ConfigProfile.features.psp": {
       "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
@@ -1430,6 +1652,16 @@
       },
       "recheck_after": "2027-02-22"
     },
+    "ConfigProfile.features.send_message_to_user_async": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
     "ConfigProfile.features.shell_snapshot_v2": {
       "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
       "decided_in": "#56",
@@ -1469,6 +1701,16 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-03-11"
+    },
+    "ConfigProfile.features.system_proxy_fallback": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
     },
     "ConfigProfile.features.tool_registry": {
       "reason": "Codex tool-registry feature container; its only field is already dropped (see ToolRegistryConfigToml.error_on_tool_collisions).",
@@ -1519,6 +1761,16 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-02-22"
+    },
+    "ConfigProfile.features.use_xaa": {
+      "reason": "Codex per-profile feature toggle; Claude has no per-profile feature flag table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
     },
     "ConfigProfile.features.view_image": {
       "reason": "Codex host feature toggle for the view-image tool; Claude exposes no settings key for it.",
@@ -1704,6 +1956,86 @@
       "schema_desc_hash": "9e9d01fcc8fd",
       "recheck_after": "2027-01-07"
     },
+    "FeatureToggleToml.enabled": {
+      "reason": "Generic Codex {enabled} toggle, successor to OrchestratorFeatureToml (removed upstream), now referenced by orchestrator.mcp/skills and cloud.skills; Claude has no equivalent.",
+      "decided_in": "#24, renamed in #65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "GatewayOAuthConfig.authorization_url": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "GatewayOAuthConfig.client_id": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "GatewayOAuthConfig.delivery": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "GatewayOAuthConfig.redirect_port": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "GatewayOAuthConfig.resource": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "GatewayOAuthConfig.scopes": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "GatewayOAuthConfig.token_url": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
     "GoalsToml.max_goal_token_budget": {
       "reason": "Codex goal-tracking host feature; Claude /goal is a session feature with no settings-level budget knob.",
       "decided_in": "#53",
@@ -1743,7 +2075,7 @@
         "claude_to_codex": "drop",
         "codex_to_claude": "drop"
       },
-      "schema_desc_hash": "320f333b6b27",
+      "schema_desc_hash": "9299a63c230a",
       "recheck_after": "2027-03-11"
     },
     "GuardianV2ConfigToml.max_action_tokens": {
@@ -1845,7 +2177,7 @@
         "claude_to_codex": "drop",
         "codex_to_claude": "drop"
       },
-      "schema_desc_hash": "50e94f14cf07",
+      "schema_desc_hash": "44417a4c6f69",
       "recheck_after": "2027-03-11"
     },
     "GuardianV2ConfigToml.transcript": {
@@ -1951,6 +2283,50 @@
       },
       "recheck_after": "2027-02-22"
     },
+    "McpEnterpriseManagedAuthConfig.idp": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "a5c4c533c554",
+      "recheck_after": "2027-04-03"
+    },
+    "McpServerIdpOAuthConfig.client_id": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "89a3086de86d",
+      "recheck_after": "2027-04-03"
+    },
+    "McpServerIdpOAuthConfig.issuer": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "3e175f39a706",
+      "recheck_after": "2027-04-03"
+    },
+    "McpServerOAuthConfig.authorization_server_issuer": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "409fb4ed9d9c",
+      "recheck_after": "2027-04-03"
+    },
     "McpServerOAuthConfig.callback_port": {
       "reason": "Codex per-server OAuth callback port override; Claude MCP OAuth does not expose a callback port setting.",
       "decided_in": "#53",
@@ -1972,6 +2348,17 @@
       },
       "schema_desc_hash": "052125cb5a00",
       "recheck_after": "2027-03-11"
+    },
+    "McpServerOAuthConfig.client_secret": {
+      "reason": "Codex MCP OAuth client secret; ai-config-sync never copies MCP credentials between hosts (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "95d894be66bc",
+      "recheck_after": "2027-04-03"
     },
     "McpServerToolConfig.output_token_limit": {
       "reason": "Codex per-tool output token budget; Claude MCP server entries have no per-tool budget and MAX_MCP_OUTPUT_TOKENS is a global env var.",
@@ -2028,6 +2415,28 @@
       "schema_desc_hash": "66460b85a161",
       "recheck_after": "2027-03-19"
     },
+    "ModelProviderInfo.gateway_oauth": {
+      "reason": "Codex model-provider gateway OAuth credentials; Claude has no provider auth settings (same ground as AwsAuthRefreshConfig).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "23f178cdc234",
+      "recheck_after": "2027-04-03"
+    },
+    "ModelProviderInfo.model_catalog_url": {
+      "reason": "Codex model-provider catalog endpoint; Claude settings have no model provider table.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "540b40066d99",
+      "recheck_after": "2027-04-03"
+    },
     "ModelProviderInfo.supports_standalone_web_search": {
       "reason": "Declares a Codex model provider capability; Claude exposes WebSearch as a tool, not a per-provider capability flag.",
       "decided_in": "#45",
@@ -2039,6 +2448,17 @@
       "schema_desc_hash": "28df2bc50448",
       "recheck_after": "2027-01-29"
     },
+    "MultiAgentV2ConfigToml.disable_direct_message": {
+      "reason": "Codex multi-agent v2 runtime setting; Claude subagents have no message board or direct-message tool config.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "748ad8261da8",
+      "recheck_after": "2027-04-03"
+    },
     "MultiAgentV2ConfigToml.expose_spawn_agent_model_overrides": {
       "reason": "Codex multi-agent v2 spawn-tool surface control; Claude has no multi-agent v2 backend. Same family as multi_agent_mode_hint_text.",
       "decided_in": "#33",
@@ -2049,6 +2469,17 @@
       },
       "schema_desc_hash": "d87382920b90",
       "recheck_after": "2027-01-25"
+    },
+    "MultiAgentV2ConfigToml.message_board_in_memory": {
+      "reason": "Codex multi-agent v2 runtime setting; Claude subagents have no message board or direct-message tool config.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "c9c01a9de3a1",
+      "recheck_after": "2027-04-03"
     },
     "MultiAgentV2ConfigToml.multi_agent_mode_hint_text": {
       "reason": "Codex multi-agent host UI hint text; no Claude equivalent.",
@@ -2123,18 +2554,8 @@
       "schema_desc_hash": "7af63e454a84",
       "recheck_after": "2027-01-29"
     },
-    "OrchestratorFeatureToml.enabled": {
-      "reason": "Codex-internal orchestrator feature toggle; see codex_top_level.orchestrator.",
-      "decided_in": "#24",
-      "decided_at": "2026-07-02",
-      "direction": {
-        "claude_to_codex": "drop",
-        "codex_to_claude": "drop"
-      },
-      "recheck_after": "2027-01-02"
-    },
     "OrchestratorToml.mcp": {
-      "reason": "Codex orchestrator-subsystem feature toggle (bare $ref to OrchestratorFeatureToml {enabled}); unrelated to Claude mcpServers/skills content configs. See codex_top_level.orchestrator.",
+      "reason": "Codex orchestrator-subsystem feature toggle (bare $ref to FeatureToggleToml {enabled}); unrelated to Claude mcpServers/skills content configs. See codex_top_level.orchestrator.",
       "decided_in": "#24",
       "decided_at": "2026-07-02",
       "direction": {
@@ -2144,14 +2565,37 @@
       "recheck_after": "2027-01-02"
     },
     "OrchestratorToml.skills": {
-      "reason": "Codex orchestrator-subsystem feature toggle (bare $ref to OrchestratorFeatureToml {enabled}); unrelated to Claude mcpServers/skills content configs. See codex_top_level.orchestrator.",
+      "reason": "Legacy no-op orchestrator toggle (bare $ref to FeatureToggleToml {enabled}), superseded by cloud.skills; unrelated to Claude mcpServers/skills content configs. See codex_top_level.orchestrator.",
       "decided_in": "#24",
       "decided_at": "2026-07-02",
       "direction": {
         "claude_to_codex": "drop",
         "codex_to_claude": "drop"
       },
+      "schema_desc_hash": "3dea5ec46e4f",
       "recheck_after": "2027-01-02"
+    },
+    "OtelConfigToml.log_agent_responses": {
+      "reason": "Codex OTLP log export opt-in; Claude telemetry is configured through env vars, not a mapped settings key.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "7c2c319bb57b",
+      "recheck_after": "2027-04-03"
+    },
+    "OtelConfigToml.log_guardian_assessments": {
+      "reason": "Codex OTLP log export opt-in; Claude telemetry is configured through env vars, not a mapped settings key.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f9404ef9dca8",
+      "recheck_after": "2027-04-03"
     },
     "OtelConfigToml.tool_result": {
       "reason": "Codex OpenTelemetry tool-result log sizing; Claude exposes telemetry through OTEL_* env vars and otelHeadersHelper, neither of which carries a log byte budget.",
@@ -2163,6 +2607,68 @@
       },
       "schema_desc_hash": "cdf85f487616",
       "recheck_after": "2027-02-27"
+    },
+    "PluginMcpServerConfig.ema_auth": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "aa1e2ee67b9c",
+      "recheck_after": "2027-04-03"
+    },
+    "PluginMcpServerEmaAuthConfig.authorization_server_issuer": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "PluginMcpServerEmaAuthConfig.client_id": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "PluginMcpServerEmaAuthConfig.resource": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "PluginMcpServerEmaAuthConfig.scopes": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "recheck_after": "2027-04-03"
+    },
+    "PluginMcpServerEmaAuthConfig.url": {
+      "reason": "Codex MCP enterprise-managed auth (EMA); ai-config-sync maps MCP tool-approval only, never transport/auth (same ground as RawMcpServerConfig.auth).",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "75fa09e82c75",
+      "recheck_after": "2027-04-03"
     },
     "RawMcpServerConfig.auth": {
       "reason": "Codex MCP server auth/credentials; ai-config-sync maps MCP tool-approval only, never transport/auth. No cross-host sync.",
@@ -2183,6 +2689,28 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-02-11"
+    },
+    "RawMcpServerConfig.startup_readiness": {
+      "reason": "Codex per-server MCP runtime tuning; ai-config-sync maps MCP launch command/url/env and tool approval only.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "dcaed0cc3b2c",
+      "recheck_after": "2027-04-03"
+    },
+    "RawMcpServerConfig.tool_input_schema_max_bytes": {
+      "reason": "Codex per-server MCP runtime tuning; ai-config-sync maps MCP launch command/url/env and tool approval only.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "957d6895dd9e",
+      "recheck_after": "2027-04-03"
     },
     "RolloutBudgetConfigToml.enabled": {
       "reason": "Codex rollout weighted-token budget; no Claude equivalent.",
@@ -2407,6 +2935,17 @@
       "schema_desc_hash": "ae55620b505e",
       "recheck_after": "2027-03-11"
     },
+    "Tui.copy_on_select": {
+      "reason": "Codex TUI mouse copy-on-select behavior; terminal-specific and no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "a1a44f0a7b6b",
+      "recheck_after": "2027-04-03"
+    },
     "Tui.disable_paste_burst": {
       "reason": "Codex TUI paste-burst toggle superseding the legacy top-level disable_paste_burst; Claude has no paste-handling setting.",
       "decided_in": "#60",
@@ -2417,6 +2956,28 @@
       },
       "schema_desc_hash": "a4ab2bc6eeec",
       "recheck_after": "2027-03-11"
+    },
+    "Tui.effects": {
+      "reason": "Codex TUI per-effect animation toggles (successor to the removed Tui.whimsy); Claude prefersReducedMotion only reduces motion and does not gate individual effects.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "1728cd6cf866",
+      "recheck_after": "2027-04-03"
+    },
+    "Tui.fullscreen_transcript": {
+      "reason": "Codex TUI fullscreen transcript toggle; no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "48d0be127f8d",
+      "recheck_after": "2027-04-03"
     },
     "Tui.question_esc_back": {
       "reason": "Codex TUI composer navigation preference for async questions; Claude has no equivalent settings key.",
@@ -2429,6 +2990,17 @@
       "schema_desc_hash": "d0c3196ac338",
       "recheck_after": "2027-03-11"
     },
+    "Tui.rendering": {
+      "reason": "Codex TUI rich-rendering toggles (lists, math, mermaid, tables); Claude has no renderer settings and no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "d862a3a5a266",
+      "recheck_after": "2027-04-03"
+    },
     "Tui.resume_cwd": {
       "reason": "Codex TUI working-directory preference for resume and fork; Claude resume has no equivalent settings key.",
       "decided_in": "#33",
@@ -2440,6 +3012,28 @@
       "schema_desc_hash": "09bac73e37da",
       "recheck_after": "2027-01-25"
     },
+    "Tui.right_click_paste": {
+      "reason": "Codex TUI right-click paste fallback; terminal-specific and no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "dcc1ab03d325",
+      "recheck_after": "2027-04-03"
+    },
+    "Tui.screen_reader_detection_done": {
+      "reason": "Codex TUI one-time detection state record, not a user preference; Claude axScreenReader is already dropped.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "885345054b90",
+      "recheck_after": "2027-04-03"
+    },
     "Tui.show_server_version_notice": {
       "reason": "Codex TUI notice toggle for older app-server builds; Claude has no equivalent settings key and no sync area covers plain settings keys.",
       "decided_in": "#64",
@@ -2448,19 +3042,8 @@
         "claude_to_codex": "drop",
         "codex_to_claude": "drop"
       },
-      "schema_desc_hash": "dac4a648ce27",
+      "schema_desc_hash": "965fd4026b74",
       "recheck_after": "2027-03-19"
-    },
-    "Tui.whimsy": {
-      "reason": "Codex TUI decorative-effects toggle; Claude prefersReducedMotion only reduces motion and does not gate decorative effects.",
-      "decided_in": "#60",
-      "decided_at": "2026-09-12",
-      "direction": {
-        "claude_to_codex": "drop",
-        "codex_to_claude": "drop"
-      },
-      "schema_desc_hash": "f26a76625d44",
-      "recheck_after": "2027-03-11"
     },
     "TuiAgentsKeymap.archive": {
       "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
@@ -2503,8 +3086,19 @@
         "claude_to_codex": "drop",
         "codex_to_claude": "drop"
       },
-      "schema_desc_hash": "add4f4a9943b",
+      "schema_desc_hash": "5c635369ebee",
       "recheck_after": "2027-02-22"
+    },
+    "TuiAgentsKeymap.new_worktree": {
+      "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "9c05aa7de76e",
+      "recheck_after": "2027-04-03"
     },
     "TuiAgentsKeymap.rename": {
       "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
@@ -2605,6 +3199,17 @@
       "schema_desc_hash": "a7882ed60695",
       "recheck_after": "2027-03-11"
     },
+    "TuiChatKeymap.toggle_voice": {
+      "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "d4da669bf507",
+      "recheck_after": "2027-04-03"
+    },
     "TuiChatKeymap.toggle_voice_mute": {
       "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
       "decided_in": "#56",
@@ -2615,6 +3220,94 @@
       },
       "schema_desc_hash": "3b70613541ee",
       "recheck_after": "2027-02-27"
+    },
+    "TuiEffects.effort": {
+      "reason": "Codex TUI per-effect animation toggle; Claude prefersReducedMotion only reduces motion and does not gate individual effects.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "a97fb4605bd0",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiEffects.progress": {
+      "reason": "Codex TUI per-effect animation toggle; Claude prefersReducedMotion only reduces motion and does not gate individual effects.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "0233065bdf65",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiEffects.shimmer": {
+      "reason": "Codex TUI per-effect animation toggle; Claude prefersReducedMotion only reduces motion and does not gate individual effects.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "ad51baf2ea72",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiEffects.starfield": {
+      "reason": "Codex TUI per-effect animation toggle; Claude prefersReducedMotion only reduces motion and does not gate individual effects.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "aa4a127921fa",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiEffects.title": {
+      "reason": "Codex TUI per-effect animation toggle; Claude prefersReducedMotion only reduces motion and does not gate individual effects.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "6508a4ff30ac",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiEffects.welcome": {
+      "reason": "Codex TUI per-effect animation toggle; Claude prefersReducedMotion only reduces motion and does not gate individual effects.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "1bdb66830ee1",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiGlobalKeymap.find_transcript": {
+      "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "97c24d561651",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiGlobalKeymap.focus_activity": {
+      "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "f7fffab9fc85",
+      "recheck_after": "2027-04-03"
     },
     "TuiGlobalKeymap.open_agents": {
       "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
@@ -2657,6 +3350,61 @@
         "codex_to_claude": "drop"
       },
       "recheck_after": "2027-03-11"
+    },
+    "TuiPagerKeymap.find": {
+      "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "2f9d642d3ff0",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiRendering.lists": {
+      "reason": "Codex TUI rich-rendering toggle; Claude has no renderer settings and no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "fd7e4ab18b31",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiRendering.math": {
+      "reason": "Codex TUI rich-rendering toggle; Claude has no renderer settings and no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "8f9c60b8ca21",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiRendering.mermaid": {
+      "reason": "Codex TUI rich-rendering toggle; Claude has no renderer settings and no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "e15ae4e46df8",
+      "recheck_after": "2027-04-03"
+    },
+    "TuiRendering.tables": {
+      "reason": "Codex TUI rich-rendering toggle; Claude has no renderer settings and no sync area covers plain settings keys.",
+      "decided_in": "#65",
+      "decided_at": "2026-10-05",
+      "direction": {
+        "claude_to_codex": "drop",
+        "codex_to_claude": "drop"
+      },
+      "schema_desc_hash": "e42837f46abc",
+      "recheck_after": "2027-04-03"
     },
     "TuiVimNormalKeymap.enter_replace_mode": {
       "reason": "Codex TUI keybinding. Claude also has keybindings, but in a separate file (~/.claude/keybindings.json) whose action vocabulary and per-context model do not line up with Codex [tui.keymap.*]; no mapping.",

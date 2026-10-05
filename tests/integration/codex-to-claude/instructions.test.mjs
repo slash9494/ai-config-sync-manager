@@ -211,3 +211,35 @@ test("pre-existing CLAUDE.md is backed up before overwrite", () => {
     assertSourceUnchanged(fixture.home, beforeSnapshot);
   });
 });
+
+test("project instructions sync leaves CLAUDE.md uncreated when only AGENTS.md exists", () => {
+  withFixture("instructions-project-agents-only", (fixture) => {
+    writeFileSync(join(fixture.project, "AGENTS.md"), "codex instructions\n");
+
+    const plan = runPlanJson({
+      home: fixture.home,
+      projectRoot: fixture.project,
+      include: ["instructions"],
+      scope: "project",
+    });
+    assert.equal(plan.operations.length, 0);
+
+    const result = runSync({
+      home: fixture.home,
+      projectRoot: fixture.project,
+      args: [
+        "--scope",
+        "project",
+        "--include",
+        "instructions",
+        "--from",
+        "codex",
+        "--to",
+        "claude",
+        "--apply",
+      ],
+    });
+    assert.equal(result.status, 0, `apply failed: ${result.output}`);
+    assert.equal(existsSync(join(fixture.project, "CLAUDE.md")), false);
+  });
+});

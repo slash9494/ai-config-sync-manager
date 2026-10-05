@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -165,5 +165,39 @@ test("second apply is idempotent", () => {
 
     const afterSecond = readFileSync(join(fixture.home, ".claude.json"), "utf8");
     assert.equal(afterSecond, afterFirst, "second apply must not change ~/.claude.json");
+  });
+});
+
+test("codex to claude MCP sync keeps Claude-only keys on the server it overwrites", () => {
+  withFixture("mcp-claude-only-keys", (fixture) => {
+    mkdirSync(join(fixture.home, ".codex"), { recursive: true });
+    writeFileSync(
+      join(fixture.home, ".codex/config.toml"),
+      '[mcp_servers.docs]\nurl = "https://codex.example/mcp"\n'
+    );
+    writeFileSync(
+      join(fixture.home, ".claude.json"),
+      JSON.stringify({
+        mcpServers: {
+          docs: {
+            type: "http",
+            url: "https://old.example/mcp",
+            alwaysLoad: false,
+            bareElicitationCapability: true,
+          },
+        },
+      })
+    );
+
+    const result = applyMcp(fixture);
+    assert.equal(result.status, 0, `apply failed: ${result.output}`);
+
+    const claude = JSON.parse(readFileSync(join(fixture.home, ".claude.json"), "utf8"));
+    assert.deepEqual(claude.mcpServers.docs, {
+      alwaysLoad: false,
+      bareElicitationCapability: true,
+      type: "http",
+      url: "https://codex.example/mcp",
+    });
   });
 });
