@@ -122,13 +122,16 @@
         "claude": {
           "alias": "opus",
           "terms": [
+            "claude-opus-5-5",
             "claude-opus-4-8",
             "claude-opus-5",
             "opus(latest)",
             "opus4.8(latest)",
             "opus 4.8 latest",
+            "Claude Opus 5.5",
             "Claude Opus 5",
             "Claude Opus 4.8",
+            "Opus 5.5",
             "Opus 5",
             "Opus 4.8",
             "Opus"
@@ -159,10 +162,13 @@
         "claude": {
           "alias": "sonnet",
           "terms": [
+            "claude-sonnet-5-5",
             "claude-sonnet-5",
             "sonnet(latest)",
+            "Claude Sonnet 5.5",
             "Claude Sonnet 5",
             "Claude Sonnet",
+            "Sonnet 5.5",
             "Sonnet 5",
             "Sonnet"
           ]
