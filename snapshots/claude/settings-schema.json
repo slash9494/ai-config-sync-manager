@@ -751,6 +751,21 @@
               "pathPattern"
             ],
             "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Stops skills-directory plugins (folders under ~/.claude/skills/ or a project's .claude/skills/ that carry a .claude-plugin/plugin.json) from loading. Matches no marketplace. See https://code.claude.com/docs/en/plugins/org#blocklist-with-blockedmarketplaces",
+            "properties": {
+              "source": {
+                "const": "skills-dir",
+                "description": "Block skills-directory plugins",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -4854,6 +4869,21 @@
             "required": [
               "source",
               "pathPattern"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Keeps skills-directory plugins (folders under ~/.claude/skills/ or a project's .claude/skills/ that carry a .claude-plugin/plugin.json) loading while an allowlist is set. Matches no marketplace. See https://code.claude.com/docs/en/plugins/org#keep-skills-directory-plugins-loading",
+            "properties": {
+              "source": {
+                "const": "skills-dir",
+                "description": "Identifies the marketplace source type",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source"
             ],
             "type": "object"
           }
